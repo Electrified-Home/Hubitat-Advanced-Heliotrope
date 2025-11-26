@@ -1,0 +1,44 @@
+{
+  "packageName": "Advanced Heliotrope",
+  "author": "Electrified Home",
+  "version": "0.1.0",
+  "minimumHEVersion": "2.2.0",
+  "dateReleased": "",
+  "licenseFile": "LICENSE",
+  "releaseNotes": "Initial release - project structure scaffolding",
+  "documentationLink": "https://github.com/Electrified-Home/Hubitat-Advanced-Heliotrope/blob/main/docs/README.md",
+  "communityLink": "",
+  "apps": [
+    {
+      "id": "advanced-heliotrope-app",
+      "name": "Advanced Heliotrope",
+      "namespace": "electrified-home",
+      "location": "apps/advanced-heliotrope-app.groovy",
+      "required": true,
+      "primary": true
+    }
+  ],
+  "drivers": [
+    {
+      "id": "advanced-heliotrope-driver",
+      "name": "Advanced Heliotrope Driver",
+      "namespace": "electrified-home",
+      "location": "drivers/advanced-heliotrope-driver.groovy",
+      "required": true
+    },
+    {
+      "id": "advanced-heliotrope-sky-region",
+      "name": "Advanced Heliotrope Sky Region",
+      "namespace": "electrified-home",
+      "location": "drivers/advanced-heliotrope-sky-region.groovy",
+      "required": true
+    },
+    {
+      "id": "advanced-heliotrope-sun-position",
+      "name": "Advanced Heliotrope Sun Position",
+      "namespace": "electrified-home",
+      "location": "drivers/advanced-heliotrope-sun-position.groovy",
+      "required": true
+    }
+  ]
+}

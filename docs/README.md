@@ -1,8 +1,10 @@
-# Hubitat-Advanced-Heliotrope
+# Advanced Heliotrope
 
 A Hubitat app and driver suite that provides advanced sun-position tracking with configurable sky regions, enabling precise automations based on solar geometry.
 
-## Features
+## Overview
+
+Advanced Heliotrope allows you to:
 
 - Track the sun's position (azimuth and elevation) throughout the day
 - Define custom sky regions for automations
@@ -13,13 +15,12 @@ A Hubitat app and driver suite that provides advanced sun-position tracking with
 ```
 Hubitat-Advanced-Heliotrope/
 ├── apps/
-│   └── advanced-heliotrope-app.groovy
+│   └── advanced-heliotrope-app.groovy    # Parent app
 ├── drivers/
-│   ├── advanced-heliotrope-driver.groovy
-│   ├── advanced-heliotrope-sky-region.groovy
-│   └── advanced-heliotrope-sun-position.groovy
+│   ├── advanced-heliotrope-driver.groovy      # Parent driver
+│   ├── advanced-heliotrope-sky-region.groovy  # Child driver for sky regions
+│   └── advanced-heliotrope-sun-position.groovy # Child driver for sun position
 ├── docs/
-│   ├── README.md
 │   ├── INSTALLATION.md
 │   ├── USAGE.md
 │   ├── ARCHITECTURE.md
@@ -40,16 +41,7 @@ Hubitat-Advanced-Heliotrope/
 
 ## Installation
 
-### Hubitat Package Manager (Recommended)
-
-1. Open Hubitat Package Manager on your hub
-2. Select "Install" from the menu
-3. Search for "Advanced Heliotrope"
-4. Follow the prompts to complete installation
-
-### Manual Installation
-
-See the [Installation Guide](docs/INSTALLATION.md) for manual installation instructions.
+See the [Installation Guide](docs/INSTALLATION.md) for detailed installation instructions.
 
 ## License
 
