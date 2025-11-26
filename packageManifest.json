@@ -1,6 +1,8 @@
 {
   "packageName": "Hubitat Advanced Heliotrope",
   "version": "0.0.0",
+  "minimumHEVersion": "2.3.0",
+  "author": "Electrified-Home",
   "apps": [],
   "drivers": []
 }

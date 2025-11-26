@@ -1,9 +1,15 @@
-# Editor artifacts
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS artifacts
+# OS junk
 .DS_Store
 Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*.tmp
+
+# Logs
+*.log
+
+# Build artifacts (reserved)
+dist/
+build/
