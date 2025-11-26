@@ -1,21 +1,9 @@
-# IDE and Editor files
+# Editor artifacts
 .idea/
 .vscode/
 *.swp
 *.swo
-*~
 
-# OS generated files
+# OS artifacts
 .DS_Store
-.DS_Store?
 Thumbs.db
-
-# Temporary files
-*.tmp
-*.bak
-*.log
-
-# Build artifacts
-build/
-dist/
-out/

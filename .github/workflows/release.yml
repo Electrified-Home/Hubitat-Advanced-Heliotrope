@@ -1,0 +1,11 @@
+name: Placeholder Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder step
+        run: echo "Release workflow placeholder"
