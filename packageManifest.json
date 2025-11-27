@@ -23,7 +23,7 @@
   "drivers": [
     {
       "id": "sun-position-driver",
-      "name": "Advanced Heliotrope Sun Position",
+      "name": "Advanced Heliotrope Driver",
       "namespace": "electrified-home",
       "location": "https://raw.githubusercontent.com/Electrified-Home/Hubitat-Advanced-Heliotrope/main/drivers/SunPositionDriver.groovy",
       "importUrl": "https://raw.githubusercontent.com/Electrified-Home/Hubitat-Advanced-Heliotrope/main/drivers/SunPositionDriver.groovy",
@@ -31,7 +31,7 @@
     },
     {
       "id": "sky-region-circular",
-      "name": "Advanced Heliotrope Circular Region",
+      "name": "Advanced Heliotrope Region, Circular",
       "namespace": "electrified-home",
       "location": "https://raw.githubusercontent.com/Electrified-Home/Hubitat-Advanced-Heliotrope/main/drivers/SkyRegionCircular.groovy",
       "importUrl": "https://raw.githubusercontent.com/Electrified-Home/Hubitat-Advanced-Heliotrope/main/drivers/SkyRegionCircular.groovy",
@@ -39,7 +39,7 @@
     },
     {
       "id": "sky-region-rectangular",
-      "name": "Advanced Heliotrope Rectangular Region",
+      "name": "Advanced Heliotrope Region, Rectangular",
       "namespace": "electrified-home",
       "location": "https://raw.githubusercontent.com/Electrified-Home/Hubitat-Advanced-Heliotrope/main/drivers/SkyRegionRectangular.groovy",
       "importUrl": "https://raw.githubusercontent.com/Electrified-Home/Hubitat-Advanced-Heliotrope/main/drivers/SkyRegionRectangular.groovy",

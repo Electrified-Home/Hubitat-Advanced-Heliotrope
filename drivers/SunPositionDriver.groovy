@@ -1,5 +1,5 @@
 /*
- * Advanced Heliotrope - Sun Position Driver
+ * Advanced Heliotrope Driver
  * Copyright (c) 2024-2025 Electrified Home
  *
  * This program is free software: you can redistribute it and/or modify it under
@@ -21,7 +21,7 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
 /**
- * Advanced Heliotrope - Sun Position Driver
+ * Advanced Heliotrope Driver
  *
  * Calculates the current sun azimuth/altitude for the hub location and shares
  * the results with the parent app so region drivers can react.
@@ -29,10 +29,30 @@ import java.time.format.DateTimeFormatter
 @Field static final String UNIT_DEGREES = '°'
 @Field static final String UNKNOWN_VALUE = 'Unknown'
 @Field static final String INPUT_TYPE_BOOL = 'bool'
+@Field static final String INPUT_TYPE_DECIMAL = 'decimal'
 @Field static final String SCHEDULE_HANDLER = 'scheduledUpdate'
 @Field static final String ATTR_AZIMUTH = 'azimuth'
 @Field static final String ATTR_ALTITUDE = 'altitude'
 @Field static final String ATTR_LAST_CALCULATED = 'lastCalculated'
+@Field static final String COMMAND_UPDATE_SUN = 'updateSunPosition'
+@Field static final String DATA_REGION_TYPE = 'regionType'
+@Field static final String REGION_DNI_PREFIX = 'AH-REGION'
+@Field static final String HUB_NAMESPACE = 'electrified-home'
+@Field static final Map REGION_DRIVER_MAP = [
+    circular   : 'Advanced Heliotrope Region, Circular',
+    rectangular: 'Advanced Heliotrope Region, Rectangular'
+]
+@Field static final Map DEFAULT_CIRCULAR = [
+    centerAzimuth : 180d,
+    centerAltitude: 35d,
+    radiusDegrees : 15d
+]
+@Field static final Map DEFAULT_RECTANGULAR = [
+    minAzimuth : 90d,
+    maxAzimuth : 270d,
+    minAltitude: 0d,
+    maxAltitude: 70d
+]
 @Field static final float FULL_CIRCLE_DEGREES = 360f
 @Field static final float HALF_CIRCLE_DEGREES = 180f
 @Field static final float RIGHT_ANGLE_DEGREES = 90f
@@ -67,7 +87,8 @@ import java.time.format.DateTimeFormatter
 @Field static final String STRING = 'STRING'
 
 metadata {
-    definition(name: 'Advanced Heliotrope Sun Position', namespace: 'electrified-home', author: 'Electrified Home') {
+    definition(name: 'Advanced Heliotrope Driver', namespace: HUB_NAMESPACE, author: 'Electrified Home') {
+        capability 'Actuator'
         capability 'Sensor'
         capability 'Refresh'
 
@@ -94,6 +115,11 @@ void updated() {
     initialize()
 }
 
+void uninstalled() {
+    log.info 'Sun position driver removed; deleting region children'
+    removeAllRegionDevices()
+}
+
 void refresh() {
     updatePosition()
 }
@@ -116,6 +142,42 @@ void updatePosition() {
 void scheduledUpdate() {
     updatePosition()
     scheduleUpdateJob(getEffectiveIntervalMinutes())
+}
+
+Map registerRegionDevice(String label, String typeKey, Map geometry = [:]) {
+    if (!label?.trim() || !typeKey) {
+        return [success: false, message: 'Label and type are required']
+    }
+    String driverName = REGION_DRIVER_MAP[typeKey]
+    if (!driverName) {
+        return [success: false, message: "Unsupported region type ${typeKey}"]
+    }
+    String dni = generateRegionDni(typeKey)
+    Map options = [label: label.trim(), name: label.trim(), isComponent: false]
+    try {
+        def regionDevice = addChildDevice(HUB_NAMESPACE, driverName, dni, options)
+        regionDevice.updateDataValue(DATA_REGION_TYPE, typeKey)
+        applyRegionInitialSettings(regionDevice, typeKey, geometry ?: getRegionDefaultGeometry(typeKey))
+        pushCurrentSunPosition(regionDevice)
+        return [success: true, deviceId: regionDevice.id]
+    } catch (IllegalArgumentException | IllegalStateException ex) {
+        log.warn "Unable to create region device: ${ex.message}"
+        return [success: false, message: ex.message]
+    }
+}
+
+Map removeRegionDeviceById(Object deviceId) {
+    def regionDevice = regionDevices().find { child -> "${child.id}" == "${deviceId}" }
+    if (!regionDevice) {
+        return [success: false, message: 'Region not found']
+    }
+    try {
+        deleteChildDevice(regionDevice.deviceNetworkId)
+        return [success: true]
+    } catch (IllegalArgumentException | IllegalStateException ex) {
+        log.warn "Unable to delete region device: ${ex.message}"
+        return [success: false, message: ex.message]
+    }
 }
 
 private void initialize() {
@@ -294,7 +356,7 @@ private void notifyChildRegions(Map position) {
         return
     }
     children.each { child ->
-        if (child?.metaClass?.respondsTo(child, 'updateSunPosition', Number, Number)) {
+        if (child?.metaClass?.respondsTo(child, COMMAND_UPDATE_SUN, Number, Number)) {
             child.updateSunPosition(position.azimuth as Number, position.altitude as Number)
         } else {
             log.warn "Child device ${child?.displayName ?: child?.deviceNetworkId} cannot accept sun position updates"
@@ -304,4 +366,91 @@ private void notifyChildRegions(Map position) {
 
 private boolean isLocationConfigured() {
     return location?.latitude != null && location?.longitude != null
+}
+
+private List regionDevices() {
+    return getChildDevices()?.findAll { child ->
+        child?.deviceNetworkId?.startsWith(REGION_DNI_PREFIX)
+    } ?: []
+}
+
+private Map getRegionDefaultGeometry(String typeKey) {
+    switch (typeKey) {
+        case 'circular':
+            return DEFAULT_CIRCULAR
+        case 'rectangular':
+            return DEFAULT_RECTANGULAR
+        default:
+            return [:]
+    }
+}
+
+private String generateRegionDni(String typeKey) {
+    String normalized = typeKey?.toString()?.toUpperCase() ?: 'UNKNOWN'
+    return "${REGION_DNI_PREFIX}-${normalized}-${UUID.randomUUID()}"
+}
+
+private void applyRegionInitialSettings(Object device, String typeKey, Map geometry) {
+    if (!device || !geometry) {
+        return
+    }
+    switch (typeKey) {
+        case 'circular':
+            updateDeviceDecimalSetting(device, 'centerAzimuth', geometry.centerAzimuth)
+            updateDeviceDecimalSetting(device, 'centerAltitude', geometry.centerAltitude)
+            updateDeviceDecimalSetting(device, 'radiusDegrees', geometry.radiusDegrees)
+            break
+        case 'rectangular':
+            updateDeviceDecimalSetting(device, 'minAzimuth', geometry.minAzimuth)
+            updateDeviceDecimalSetting(device, 'maxAzimuth', geometry.maxAzimuth)
+            updateDeviceDecimalSetting(device, 'minAltitude', geometry.minAltitude)
+            updateDeviceDecimalSetting(device, 'maxAltitude', geometry.maxAltitude)
+            break
+        default:
+            break
+    }
+}
+
+private void updateDeviceDecimalSetting(Object device, String settingName, Object value) {
+    if (!device) {
+        return
+    }
+    double decimalValue = parseDouble(value)
+    if (Double.isNaN(decimalValue)) {
+        log.warn "Invalid numeric value ${value} for ${settingName}"
+        return
+    }
+    device.updateSetting(settingName, [value: decimalValue, type: INPUT_TYPE_DECIMAL])
+}
+
+private void pushCurrentSunPosition(Object regionDevice) {
+    if (!regionDevice?.hasCommand(COMMAND_UPDATE_SUN)) {
+        return
+    }
+    double azimuth = parseDouble(device?.currentValue(ATTR_AZIMUTH))
+    double altitude = parseDouble(device?.currentValue(ATTR_ALTITUDE))
+    if (!Double.isNaN(azimuth) && !Double.isNaN(altitude)) {
+        regionDevice.updateSunPosition(azimuth, altitude)
+    }
+}
+
+private double parseDouble(Object value) {
+    if (value == null || value == '') {
+        return Double.NaN
+    }
+    try {
+        return Double.parseDouble(value.toString())
+    } catch (NumberFormatException ignored) {
+        return Double.NaN
+    }
+}
+
+private void removeAllRegionDevices() {
+    regionDevices().each { child ->
+        try {
+            deleteChildDevice(child.deviceNetworkId)
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            log.warn "Unable to delete region device ${child?.displayName ?: child?.deviceNetworkId}: ${ex.message}"
+        }
+    }
 }

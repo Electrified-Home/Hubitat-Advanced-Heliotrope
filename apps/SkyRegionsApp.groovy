@@ -20,14 +20,33 @@
 
 import groovy.transform.Field
 
+/* groovylint-disable MethodCount */
+
+@Field static final String APP_NAME = 'Advanced Heliotrope'
 @Field static final Map REGION_TYPES = [
-    circular   : [driver: 'SkyRegionCircular', description: 'Circular (center + radius)'],
-    rectangular: [driver: 'SkyRegionRectangular', description: 'Rectangular (min/max azimuth & altitude)']
+    circular: [
+        driver      : 'Advanced Heliotrope Region, Circular',
+        description : 'Circular (center + radius)'
+    ],
+    rectangular: [
+        driver      : 'Advanced Heliotrope Region, Rectangular',
+        description : 'Rectangular (min/max azimuth & altitude)'
+    ]
 ]
 @Field static final String HUB_NAMESPACE = 'electrified-home'
 @Field static final String PAGE_MAIN = 'mainPage'
+@Field static final String PAGE_SUN_DEVICE = 'sunDevicePage'
 @Field static final String PAGE_REGION_CREATE = 'regionCreatePage'
+@Field static final String PAGE_REGION_CREATE_CONFIRM = 'regionCreateConfirmPage'
 @Field static final String PAGE_REGION_DETAIL = 'regionDetailPage'
+@Field static final String PAGE_REGION_DELETE = 'regionDeletePage'
+@Field static final String SECTION_STATUS = 'Status'
+@Field static final String SECTION_RESULT = 'Result'
+@Field static final String SECTION_NEXT_STEPS = 'Next Steps'
+@Field static final String BUTTON_DELETE_REGION = 'Delete Region'
+@Field static final String LINK_BACK_TO_REGIONS = 'Back to Regions'
+@Field static final String DESCRIPTION_RETURN_MAIN = 'Return to the main overview'
+@Field static final String ACTION_REPAIR = 'repair'
 @Field static final String BUTTON_CREATE_REGION = 'Create Region'
 @Field static final String SECTION_ACTIONS = 'Actions'
 @Field static final String UNKNOWN_VALUE = 'Unknown'
@@ -35,35 +54,25 @@ import groovy.transform.Field
 @Field static final String INPUT_TYPE_ENUM = 'enum'
 @Field static final String MESSAGE_UNABLE_ADD_REGION = 'Unable to add region device'
 @Field static final String MESSAGE_REGION_REMOVAL_FAILED = 'Region removal failed'
+@Field static final String MESSAGE_SUN_NOT_FOUND = 'Sun Position device not found.'
+@Field static final String MESSAGE_UNKNOWN_ERROR = 'Unknown error'
 @Field static final String SUN_DNI_PREFIX = 'AH-Sun-'
 @Field static final String REGION_DNI_PREFIX = 'AH-REGION'
+@Field static final String DRIVER_SUN_POSITION = 'Advanced Heliotrope Driver'
 @Field static final String ATTR_MOTION = 'motion'
+@Field static final String ATTR_SUN_AZIMUTH = 'azimuth'
+@Field static final String ATTR_SUN_ALTITUDE = 'altitude'
 @Field static final String DATA_REGION_TYPE = 'regionType'
 @Field static final String SETTING_PENDING_LABEL = 'pendingRegionLabel'
 @Field static final String SETTING_PENDING_TYPE = 'pendingRegionType'
-@Field static final Map ORIENTATION_SUGGESTIONS = [
-    north     : [label: 'North (0°)', azimuth: 0d],
-    northeast : [label: 'Northeast (45°)', azimuth: 45d],
-    east      : [label: 'East (90°)', azimuth: 90d],
-    southeast : [label: 'Southeast (135°)', azimuth: 135d],
-    south     : [label: 'South (180°)', azimuth: 180d],
-    southwest : [label: 'Southwest (225°)', azimuth: 225d],
-    west      : [label: 'West (270°)', azimuth: 270d],
-    northwest : [label: 'Northwest (315°)', azimuth: 315d]
-]
-@Field static final Map ALTITUDE_SUGGESTIONS = [
-    low : [label: 'Low horizon (15°)', altitude: 15d],
-    mid : [label: 'Mid sky (35°)', altitude: 35d],
-    high: [label: 'High sky (55°)', altitude: 55d]
-]
-@Field static final Map WIDTH_SUGGESTIONS = [
-    narrow: [label: 'Tight focus (radius 8°)', radius: 8d],
-    medium: [label: 'Standard (radius 15°)', radius: 15d],
-    wide  : [label: 'Broad window (radius 25°)', radius: 25d]
-]
+@Field static final Map DEFAULT_CIRCULAR = [azimuth: 180d, altitude: 35d, radius: 15d]
+@Field static final Map DEFAULT_RECTANGULAR = [minAz: 90d, maxAz: 270d, minAlt: 0d, maxAlt: 70d]
+@Field static final String DEVICE_EDIT_PATH = '/device/edit/'
+@Field static final String STYLE_EXTERNAL = 'external'
+@Field static final String TITLE_CREATE_SUN_DEVICE = 'Create Sun Device'
 
 definition(
-    name: 'Advanced Heliotrope',
+    name: APP_NAME,
     namespace: HUB_NAMESPACE,
     author: 'Electrified Home',
     description: 'Parent app that manages sun tracking and sky regions',
@@ -75,20 +84,28 @@ definition(
 
 preferences {
     page(name: PAGE_MAIN)
+    page(name: PAGE_SUN_DEVICE)
     page(name: PAGE_REGION_CREATE)
+    page(name: PAGE_REGION_CREATE_CONFIRM)
     page(name: PAGE_REGION_DETAIL)
+    page(name: PAGE_REGION_DELETE)
 }
 
 def mainPage() {
-    dynamicPage(name: PAGE_MAIN, title: 'Advanced Heliotrope', uninstall: true, install: true) {
+    dynamicPage(name: PAGE_MAIN, title: APP_NAME, uninstall: true, install: true) {
         section('Sun Device') {
             def sun = getSunDevice()
             if (sun) {
                 paragraph "Sun Position device installed as '${sun.displayName}'. " +
                     'Configure update cadence directly on that device.'
+                href name: 'sunDeviceLink', title: 'Open Sun Device Page',
+                    description: 'Opens the Hubitat device detail view in a new tab',
+                    style: STYLE_EXTERNAL, url: deviceEditUrl(sun.id)
             } else {
-                paragraph 'Sun Position device not found.'
-                appButton 'repairSunDevice', title: 'Recreate Sun Device'
+                paragraph MESSAGE_SUN_NOT_FOUND
+                href name: 'sunDeviceCreateAction', title: TITLE_CREATE_SUN_DEVICE,
+                    description: 'Create the sun device now',
+                    page: PAGE_SUN_DEVICE
             }
         }
 
@@ -100,8 +117,9 @@ def mainPage() {
                     def motionState = child.currentValue(ATTR_MOTION) ?: UNKNOWN_VALUE
                     String typeSummary = REGION_TYPES[typeKey]?.description ?: 'Tap to view'
                     String detail = "Motion: ${motionState} • ${typeSummary}"
-                    href PAGE_REGION_DETAIL, title: child.displayName,
-                        description: detail, params: [deviceId: child.id]
+                    href name: "regionDeviceLink${child.id}", title: child.displayName,
+                        description: detail,
+                        style: STYLE_EXTERNAL, url: deviceEditUrl(child.id)
                 }
             } else {
                 paragraph 'No regions configured yet.'
@@ -112,20 +130,7 @@ def mainPage() {
             href PAGE_REGION_CREATE, title: 'Create New Region', description: 'Guided creation wizard'
         }
 
-        section('Region Planning Helper') {
-            input 'planningOrientation', INPUT_TYPE_ENUM,
-                title: 'Window faces', options: orientationOptions(), submitOnChange: true,
-                required: false
-            input 'planningAltitude', INPUT_TYPE_ENUM,
-                title: 'Sun height of interest', options: altitudeOptions(), submitOnChange: true,
-                required: false
-            input 'planningWidth', INPUT_TYPE_ENUM,
-                title: 'How wide should the window be?', options: widthOptions(), submitOnChange: true,
-                required: false
-            paragraph planningSummary()
-        }
-
-        section('Status') {
+        section(SECTION_STATUS) {
             String message = state.uiMessage ?: 'All systems ready.'
             paragraph message
         }
@@ -142,12 +147,14 @@ def regionCreatePage() {
         }
 
         section(SECTION_ACTIONS) {
-            paragraph 'Tap Create once all fields are complete. Geometry is configured on the device after creation.'
-            appButton 'createRegion', title: BUTTON_CREATE_REGION
+            paragraph 'Tap Create once the label and type are chosen. Adjust geometry later on the device page.'
+            href name: 'createRegionConfirm', title: BUTTON_CREATE_REGION,
+                description: 'Use the values above to create a region device',
+                page: PAGE_REGION_CREATE_CONFIRM, params: [token: UUID.randomUUID().toString()]
         }
 
-        section('Notes') {
-            paragraph 'Region drivers expose geometry inputs such as radius and azimuth on their device detail pages.'
+        section('After Creation') {
+            paragraph 'Open the region device in Hubitat to fine tune center azimuth, altitude, and width.'
         }
     }
 }
@@ -171,6 +178,9 @@ def regionDetailPage(Map params) {
             paragraph "Type: ${typeMeta?.description ?: child.typeName}"
             paragraph "Motion: ${child.currentValue(ATTR_MOTION) ?: UNKNOWN_VALUE}"
             paragraph "Device Id: ${child.id}"
+            href name: 'openRegionDevice', title: 'Open Region Device Page',
+                description: 'Jump to the region device detail view in Hubitat',
+                style: STYLE_EXTERNAL, url: deviceEditUrl(child.id)
         }
 
         section(SECTION_ACTIONS) {
@@ -179,22 +189,95 @@ def regionDetailPage(Map params) {
 
         section('Remove') {
             paragraph 'Deleting removes the region device and any automations attached to it.'
-            appButton 'deleteRegionDevice', title: 'Delete Region'
+            href name: 'deleteRegionConfirm', title: BUTTON_DELETE_REGION,
+                description: 'Permanently remove this region device',
+                page: PAGE_REGION_DELETE, params: [deviceId: child.id, token: UUID.randomUUID().toString()]
         }
     }
 }
 
-def appButtonHandler(String buttonName) {
-    switch (buttonName) {
-        case 'createRegion':
-            registerRegionDevice()
-            break
-        case 'deleteRegionDevice':
-            deleteActiveRegion()
-            break
-        case 'repairSunDevice':
-            repairSunDevice()
-            break
+def sunDevicePage(Map params) {
+    String token = params?.token
+    boolean wantsRepair = params?.action == ACTION_REPAIR
+    if (wantsRepair && token && state.lastSunRepairToken != token) {
+        state.lastSunRepairToken = token
+        repairSunDevice()
+    }
+
+    def sun = getSunDevice()
+    dynamicPage(name: PAGE_SUN_DEVICE, title: 'Sun Device Maintenance') {
+        section('Current Device') {
+            if (sun) {
+                paragraph "Device: ${sun.displayName} (${sun.deviceNetworkId})"
+                paragraph 'Use the device detail page to adjust logging and scheduling.'
+            } else {
+                paragraph 'No Sun Position device is currently installed.'
+            }
+        }
+
+        section(SECTION_ACTIONS) {
+            if (sun) {
+                href name: 'returnFromSunMaintenance', title: LINK_BACK_TO_REGIONS,
+                    description: DESCRIPTION_RETURN_MAIN, page: PAGE_MAIN
+            } else {
+                href name: 'sunDeviceRepairAction', title: TITLE_CREATE_SUN_DEVICE,
+                    description: 'Create the sun device if it is missing or unresponsive',
+                    page: PAGE_SUN_DEVICE, params: [action: ACTION_REPAIR, token: UUID.randomUUID().toString()]
+            }
+        }
+
+        section(SECTION_STATUS) {
+            paragraph state.uiMessage ?: 'No recent sun device actions.'
+        }
+    }
+}
+
+def regionCreateConfirmPage(Map params) {
+    String token = params?.token
+    if (token && state.lastRegionCreateToken != token) {
+        state.lastRegionCreateToken = token
+        registerRegionDevice()
+    }
+
+    String message = state.uiMessage ?: 'Provide both a label and region type before creating a device.'
+    dynamicPage(name: PAGE_REGION_CREATE_CONFIRM, title: 'Region Creation Result') {
+        section(SECTION_RESULT) {
+            paragraph message
+        }
+
+        section(SECTION_NEXT_STEPS) {
+            href name: 'createAnotherRegion', title: 'Create Another Region',
+                description: 'Return to the creation wizard', page: PAGE_REGION_CREATE
+            href name: 'returnToMainFromCreate', title: LINK_BACK_TO_REGIONS,
+                description: DESCRIPTION_RETURN_MAIN, page: PAGE_MAIN
+        }
+    }
+}
+
+def regionDeletePage(Map params) {
+    def deviceId = params?.deviceId ?: state.activeRegionDeviceId
+    if (params?.deviceId) {
+        state.activeRegionDeviceId = params.deviceId
+    }
+    String token = params?.token
+    if (deviceId && token && state.lastRegionDeleteToken != token) {
+        state.lastRegionDeleteToken = token
+        deleteRegionDeviceById(deviceId)
+    }
+
+    String message = state.uiMessage ?: 'Select a region before attempting deletion.'
+    dynamicPage(name: PAGE_REGION_DELETE, title: BUTTON_DELETE_REGION) {
+        section(SECTION_RESULT) {
+            paragraph message
+        }
+
+        section(SECTION_NEXT_STEPS) {
+            href name: 'returnToRegionDetail', title: 'Back to Region',
+                description: 'Return to the previous region detail view',
+                page: PAGE_REGION_DETAIL, params: [deviceId: state.activeRegionDeviceId]
+            href name: 'returnToMainFromDelete', title: LINK_BACK_TO_REGIONS,
+                description: DESCRIPTION_RETURN_MAIN, page: PAGE_MAIN
+        }
     }
 }
 
@@ -218,6 +301,7 @@ def uninstalled() {
 
 private void initialize() {
     state.uiMessage = state.uiMessage ?: ''
+    unsubscribe()
     ensureSunDevice()
 }
 
@@ -227,7 +311,7 @@ private void ensureSunDevice() {
         try {
             def sunDevice = addChildDevice(
                 HUB_NAMESPACE,
-                'SunPositionDriver',
+                DRIVER_SUN_POSITION,
                 dni,
                 [label: 'Sun Position', isComponent: false]
             )
@@ -245,7 +329,7 @@ private void repairSunDevice() {
         return
     }
     ensureSunDevice()
-    state.uiMessage = 'Sun Position device recreated.'
+    state.uiMessage = 'Sun Position device created.'
 }
 
 private void registerRegionDevice() {
@@ -262,32 +346,69 @@ private void registerRegionDevice() {
         return
     }
 
-    def dni = generateRegionDni(typeKey)
-    try {
-        def device = addChildDevice(HUB_NAMESPACE, driverName, dni, [label: label, isComponent: false])
-        device.updateDataValue(DATA_REGION_TYPE, typeKey)
+    def sun = getSunDevice()
+    if (!sun) {
+        state.uiMessage = MESSAGE_SUN_NOT_FOUND
+        return
+    }
+
+    Map geometry = pendingGeometryValues(typeKey)
+
+    def result = sun.registerRegionDevice(label, typeKey, geometry)
+    if (result?.success) {
         state.uiMessage = "Region ${label} created. Configure geometry on the device page."
-        app.updateSetting(SETTING_PENDING_LABEL, [value: '', type: INPUT_TYPE_TEXT])
-        app.updateSetting(SETTING_PENDING_TYPE, '')
-    } catch (IllegalArgumentException | IllegalStateException ex) {
-        state.uiMessage = "Failed to create region: ${ex.message}"
-        log.error MESSAGE_UNABLE_ADD_REGION, ex
+        clearRegionBuilderInputs()
+    } else {
+        String reason = result?.message ?: MESSAGE_UNKNOWN_ERROR
+        state.uiMessage = "Failed to create region: ${reason}"
+        log.error MESSAGE_UNABLE_ADD_REGION
     }
 }
 
-private void deleteActiveRegion() {
-    def child = getActiveRegionDevice()
+private void deleteRegionDeviceById(Object deviceId = null) {
+    def child = deviceId ? findRegionById(deviceId) : getActiveRegionDevice()
     if (!child) {
         state.uiMessage = 'No region selected for removal.'
         return
     }
-    try {
-        deleteChildDevice(child.deviceNetworkId)
-        state.uiMessage = "Region ${child.displayName} deleted."
-    } catch (IllegalArgumentException | IllegalStateException ex) {
-        state.uiMessage = "Unable to delete region: ${ex.message}"
-        log.warn MESSAGE_REGION_REMOVAL_FAILED, ex
+    def sun = getSunDevice()
+    if (!sun) {
+        state.uiMessage = MESSAGE_SUN_NOT_FOUND
+        return
     }
+    def result = sun.removeRegionDeviceById(child.id)
+    if (result?.success) {
+        state.uiMessage = "Region ${child.displayName} deleted."
+    } else {
+        String reason = result?.message ?: MESSAGE_UNKNOWN_ERROR
+        state.uiMessage = "Unable to delete region: ${reason}"
+        log.warn MESSAGE_REGION_REMOVAL_FAILED
+    }
+}
+
+private Map pendingGeometryValues(String typeKey) {
+    switch (typeKey) {
+        case 'circular':
+            return [
+                centerAzimuth : DEFAULT_CIRCULAR.azimuth,
+                centerAltitude: DEFAULT_CIRCULAR.altitude,
+                radiusDegrees : DEFAULT_CIRCULAR.radius
+            ]
+        case 'rectangular':
+            return [
+                minAzimuth : DEFAULT_RECTANGULAR.minAz,
+                maxAzimuth : DEFAULT_RECTANGULAR.maxAz,
+                minAltitude: DEFAULT_RECTANGULAR.minAlt,
+                maxAltitude: DEFAULT_RECTANGULAR.maxAlt
+            ]
+        default:
+            return [:]
+    }
+}
+
+private void clearRegionBuilderInputs() {
+    app.updateSetting(SETTING_PENDING_LABEL, [value: '', type: INPUT_TYPE_TEXT])
+    app.updateSetting(SETTING_PENDING_TYPE, '')
 }
 
 private Object getSunDevice() {
@@ -296,57 +417,16 @@ private Object getSunDevice() {
 }
 
 private List regionDevices() {
-    return childDevices?.findAll { device -> device.deviceNetworkId?.startsWith(REGION_DNI_PREFIX) } ?: []
+    def sun = getSunDevice()
+    return sun?.getChildDevices()?.findAll { device -> device.deviceNetworkId?.startsWith(REGION_DNI_PREFIX) } ?: []
 }
 
 private Map regionTypeOptions() {
     return REGION_TYPES.collectEntries { key, meta -> [(key): meta.description] }
 }
 
-private Map orientationOptions() {
-    return ORIENTATION_SUGGESTIONS.collectEntries { key, meta -> [(key): meta.label] }
-}
-
-private Map altitudeOptions() {
-    return ALTITUDE_SUGGESTIONS.collectEntries { key, meta -> [(key): meta.label] }
-}
-
-private Map widthOptions() {
-    return WIDTH_SUGGESTIONS.collectEntries { key, meta -> [(key): meta.label] }
-}
-
-private String planningSummary() {
-    def orientation = settings.planningOrientation ? ORIENTATION_SUGGESTIONS[settings.planningOrientation] : null
-    def altitude = settings.planningAltitude ? ALTITUDE_SUGGESTIONS[settings.planningAltitude] : null
-    def width = settings.planningWidth ? WIDTH_SUGGESTIONS[settings.planningWidth] : null
-
-    if (!orientation && !altitude && !width) {
-        return 'Choose an orientation, altitude, and width to see suggested geometry for both region types.'
-    }
-
-    double centerAz = orientation?.azimuth ?: 180d
-    double centerAlt = altitude?.altitude ?: 35d
-    double radius = width?.radius ?: 15d
-
-    double minAz = normalizeAzimuthValue(centerAz - radius)
-    double maxAz = normalizeAzimuthValue(centerAz + radius)
-    double minAlt = Math.max(centerAlt - radius, -90d)
-    double maxAlt = Math.min(centerAlt + radius, 90d)
-
-    String circular = "Circular region → center ${formatRange(centerAz)}°/${formatRange(centerAlt)}° " +
-        "with radius ${formatRange(radius)}°."
-    String rectangular = "Rectangular region → azimuth ${formatRange(minAz)}° to ${formatRange(maxAz)}°, " +
-        "altitude ${formatRange(minAlt)}° to ${formatRange(maxAlt)}°."
-    return "${circular}\n${rectangular}"
-}
-
-private double normalizeAzimuthValue(double value) {
-    double normalized = value % 360d
-    return normalized < 0d ? normalized + 360d : normalized
-}
-
-private int formatRange(double value) {
-    return Math.round(value as float)
+private String deviceEditUrl(Object deviceId) {
+    return "${DEVICE_EDIT_PATH}${deviceId}"
 }
 
 private Object getActiveRegionDevice() {
@@ -356,11 +436,6 @@ private Object getActiveRegionDevice() {
 private String ensureSunDeviceDni() {
     state.sunDeviceDni = state.sunDeviceDni ?: "${SUN_DNI_PREFIX}${app.id}"
     return state.sunDeviceDni
-}
-
-private String generateRegionDni(String typeKey) {
-    String normalized = typeKey?.toUpperCase() ?: 'UNKNOWN'
-    return "${REGION_DNI_PREFIX}-${normalized}-${UUID.randomUUID()}"
 }
 
 private Object findRegionById(Object deviceId) {

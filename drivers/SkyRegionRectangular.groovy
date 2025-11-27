@@ -42,14 +42,12 @@ import groovy.transform.Field
 @Field static final double DEGREE_ROUND_SCALE = 1000d
 metadata {
     definition(
-        name: 'Advanced Heliotrope Rectangular Region',
+        name: 'Advanced Heliotrope Region, Rectangular',
         namespace: 'electrified-home',
         author: 'Electrified Home'
     ) {
         capability 'Sensor'
         capability 'MotionSensor'
-
-        command 'updateSunPosition', [[name: 'Azimuth', type: TYPE_NUMBER], [name: 'Altitude', type: TYPE_NUMBER]]
     }
 
     preferences {
