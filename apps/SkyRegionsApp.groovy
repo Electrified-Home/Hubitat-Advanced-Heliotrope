@@ -310,7 +310,7 @@ private void ensureSunDevice() {
                 HUB_NAMESPACE,
                 DRIVER_SUN_POSITION,
                 dni,
-                [label: 'Sun Position', isComponent: false]
+                [label: '\u2600 Sun Position', name: APP_NAME, isComponent: false]
             )
             log.info "Created sun position child device ${sunDevice.displayName}"
         } catch (IllegalArgumentException | IllegalStateException ex) {
