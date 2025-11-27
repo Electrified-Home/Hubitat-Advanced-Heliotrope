@@ -63,7 +63,7 @@ import groovy.transform.Field
 ]
 
 definition(
-    name: 'Advanced Heliotrope - Sky Regions',
+    name: 'Advanced Heliotrope',
     namespace: HUB_NAMESPACE,
     author: 'Electrified Home',
     description: 'Parent app that manages sun tracking and sky regions',
