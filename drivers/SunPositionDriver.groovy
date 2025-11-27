@@ -111,7 +111,7 @@ void updatePosition() {
     sendEvent(name: ATTR_RUNTIME, value: seconds, unit: UNIT_SECONDS)
 
     debugLog "Sun update azimuth=${position.azimuth} altitude=${position.altitude}"
-    parent?.sunPositionUpdated(position)
+    notifyChildRegions(position)
 }
 
 void setUpdateInterval(Number minutes) {
@@ -288,6 +288,20 @@ private double normalizeMinutes(double minutes) {
 
 private double clamp(double value, double min, double max) {
     return Math.min(Math.max(value, min), max)
+}
+
+private void notifyChildRegions(Map position) {
+    def children = getChildDevices()
+    if (!children) {
+        return
+    }
+    children.each { child ->
+        if (child?.metaClass?.respondsTo(child, 'updateSunPosition', Number, Number)) {
+            child.updateSunPosition(position.azimuth as Number, position.altitude as Number)
+        } else {
+            log.warn "Child device ${child?.displayName ?: child?.deviceNetworkId} cannot accept sun position updates"
+        }
+    }
 }
 
 private boolean isLocationConfigured() {
