@@ -157,20 +157,25 @@ void updatePosition() {
 }
 
 void calculateSolarStats() {
+    log.info 'Manual solar stats calculation requested'
     Map sunInfo = getSunriseAndSunset()
     Double sunriseAz = calculateAzimuthForInstant(toInstant(sunInfo?.nextSunrise))
     Double sunsetAz = calculateAzimuthForInstant(toInstant(sunInfo?.nextSunset))
 
     if (sunriseAz != null) {
         state[STATE_NEXT_SUNRISE_AZIMUTH] = sunriseAz
+        log.info "Next sunrise azimuth stored as ${sunriseAz}°"
     } else {
         state.remove(STATE_NEXT_SUNRISE_AZIMUTH)
+        log.warn 'Next sunrise azimuth unavailable from hub data'
     }
 
     if (sunsetAz != null) {
         state[STATE_NEXT_SUNSET_AZIMUTH] = sunsetAz
+        log.info "Next sunset azimuth stored as ${sunsetAz}°"
     } else {
         state.remove(STATE_NEXT_SUNSET_AZIMUTH)
+        log.warn 'Next sunset azimuth unavailable from hub data'
     }
 }
 
