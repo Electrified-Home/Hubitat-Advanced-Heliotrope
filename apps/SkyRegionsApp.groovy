@@ -54,7 +54,7 @@ import groovy.transform.Field
 @Field static final String MESSAGE_SUN_NOT_FOUND = 'Sun Position device not found.'
 @Field static final String MESSAGE_UNKNOWN_ERROR = 'Unknown error'
 @Field static final String SUN_DNI_PREFIX = 'AH-Sun-'
-@Field static final String REGION_DNI_PREFIX = 'AH-REGION'
+@Field static final String REGION_DNI_PREFIX = 'AH-REG'
 @Field static final String DRIVER_SUN_POSITION = 'Advanced Heliotrope Driver'
 @Field static final String ATTR_MOTION = 'motion'
 @Field static final String ATTR_SUN_AZIMUTH = 'azimuth'
