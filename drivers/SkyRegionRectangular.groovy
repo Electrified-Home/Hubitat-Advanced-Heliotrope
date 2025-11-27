@@ -44,6 +44,9 @@ import java.time.format.DateTimeFormatter
 @Field static final double FALLBACK_MAX_ALTITUDE = 60d
 @Field static final double DEGREE_ROUND_SCALE = 1000d
 @Field static final String NEVER_TIME_VALUE = 'Never'
+@Field static final String SEARCH_STATE_SKIP_TO_EXIT = 'SKIP_TO_EXIT'
+@Field static final String SEARCH_STATE_FIND_ENTRY = 'FIND_ENTRY'
+@Field static final String SEARCH_STATE_FIND_EXIT = 'FIND_EXIT'
 @Field static final long MILLIS_PER_DAY = 86_400_000L
 @Field static final long WINDOW_STEP_MINUTES = 5L
 @Field static final long WINDOW_STEP_SECONDS = 300L
@@ -143,8 +146,10 @@ private void performWindowPrediction() {
 private Map evaluateRegionWindow(Instant startInstant, Instant endInstant, Map<Long, Map> cache) {
     Instant cursor = startInstant
     boolean cursorInside = regionContainsAt(cursor, cache)
-    Instant entryInstant = cursorInside ? cursor : null
+    Instant entryInstant = null
     Instant exitInstant = null
+    Instant pendingEntry = null
+    String searchState = cursorInside ? SEARCH_STATE_SKIP_TO_EXIT : SEARCH_STATE_FIND_ENTRY
     long stepSeconds = WINDOW_STEP_SECONDS
 
     while (cursor.isBefore(endInstant)) {
@@ -154,19 +159,23 @@ private Map evaluateRegionWindow(Instant startInstant, Instant endInstant, Map<L
         }
 
         boolean nextInside = regionContainsAt(nextInstant, cache)
-        if (!cursorInside && nextInside && entryInstant == null) {
-            entryInstant = refineBoundary(cursor, nextInstant, true, cache)
-        }
-        if (cursorInside && !nextInside) {
+        if (searchState == SEARCH_STATE_SKIP_TO_EXIT && cursorInside && !nextInside) {
+            searchState = SEARCH_STATE_FIND_ENTRY
+        } else if (searchState == SEARCH_STATE_FIND_ENTRY && !cursorInside && nextInside) {
+            pendingEntry = refineBoundary(cursor, nextInstant, true, cache)
+            searchState = SEARCH_STATE_FIND_EXIT
+        } else if (searchState == SEARCH_STATE_FIND_EXIT && cursorInside && !nextInside) {
             exitInstant = refineBoundary(cursor, nextInstant, false, cache)
-            if (entryInstant == null) {
-                entryInstant = cursor
-            }
+            entryInstant = pendingEntry
             break
         }
 
         cursorInside = nextInside
         cursor = nextInstant
+    }
+
+    if (!entryInstant && pendingEntry) {
+        entryInstant = pendingEntry
     }
 
     return [entry: entryInstant, exit: exitInstant]

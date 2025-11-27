@@ -19,6 +19,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.time.temporal.TemporalAccessor
 
 /**
  * Advanced Heliotrope Driver
@@ -35,6 +36,8 @@ import java.time.format.DateTimeFormatter
 @Field static final String ATTR_AZIMUTH = 'azimuth'
 @Field static final String ATTR_ALTITUDE = 'altitude'
 @Field static final String ATTR_LAST_CALCULATED = 'lastCalculated'
+@Field static final String STATE_NEXT_SUNRISE_AZIMUTH = 'nextSunriseAzimuth'
+@Field static final String STATE_NEXT_SUNSET_AZIMUTH = 'nextSunsetAzimuth'
 @Field static final String COMMAND_UPDATE_SUN = 'updateSunPosition'
 @Field static final String DATA_REGION_TYPE = 'regionType'
 @Field static final String REGION_DNI_PREFIX = 'AH-REG'
@@ -105,6 +108,7 @@ metadata {
         capability 'Actuator'
         capability 'Sensor'
         capability 'Refresh'
+        command 'calculateSolarStats'
 
         attribute ATTR_AZIMUTH, NUMBER
         attribute ATTR_ALTITUDE, NUMBER
@@ -149,8 +153,25 @@ void updatePosition() {
     sendEvent(name: ATTR_AZIMUTH, value: position.azimuth, unit: UNIT_DEGREES)
     sendEvent(name: ATTR_ALTITUDE, value: position.altitude, unit: UNIT_DEGREES)
     sendEvent(name: ATTR_LAST_CALCULATED, value: position.timestamp)
-
     notifyChildRegions(position)
+}
+
+void calculateSolarStats() {
+    Map sunInfo = getSunriseAndSunset()
+    Double sunriseAz = calculateAzimuthForInstant(toInstant(sunInfo?.nextSunrise))
+    Double sunsetAz = calculateAzimuthForInstant(toInstant(sunInfo?.nextSunset))
+
+    if (sunriseAz != null) {
+        state[STATE_NEXT_SUNRISE_AZIMUTH] = sunriseAz
+    } else {
+        state.remove(STATE_NEXT_SUNRISE_AZIMUTH)
+    }
+
+    if (sunsetAz != null) {
+        state[STATE_NEXT_SUNSET_AZIMUTH] = sunsetAz
+    } else {
+        state.remove(STATE_NEXT_SUNSET_AZIMUTH)
+    }
 }
 
 void scheduledUpdate() {
@@ -349,6 +370,29 @@ private void scheduleUpdateJob(int minutes) {
         return
     }
     schedule(cron, SCHEDULE_HANDLER)
+}
+
+private Double calculateAzimuthForInstant(Instant instant) {
+    if (!instant) {
+        return null
+    }
+    Map position = calculateSunPosition(instant)
+    return position?.azimuth as Double
+}
+
+private Instant toInstant(Object value) {
+    if (!value) {
+        return null
+    }
+    def timeProperty = value.metaClass?.hasProperty(value, 'time') ? value.time : null
+    if (timeProperty != null) {
+        return Instant.ofEpochMilli(((Number) timeProperty).longValue())
+    }
+    if (value.metaClass?.respondsTo(value, 'toInstant')) {
+        def instantValue = value.toInstant()
+        return Instant.from((TemporalAccessor) instantValue)
+    }
+    return null
 }
 
 private String formatDate(Instant instant) {
