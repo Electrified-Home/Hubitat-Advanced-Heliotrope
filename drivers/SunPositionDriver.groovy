@@ -14,9 +14,13 @@ import java.time.format.DateTimeFormatter
 @Field static final String UNIT_DEGREES = '°'
 @Field static final String UNIT_SECONDS = 's'
 @Field static final String UNKNOWN_VALUE = 'Unknown'
+@Field static final String INPUT_TYPE_BOOL = 'bool'
 @Field static final String SCHEDULE_HANDLER = 'scheduledUpdate'
 @Field static final String ATTR_AZIMUTH = 'azimuth'
 @Field static final String ATTR_ALTITUDE = 'altitude'
+@Field static final String ATTR_LAST_UPDATE = 'lastUpdate'
+@Field static final String ATTR_LAST_CALCULATED = 'lastCalculated'
+@Field static final String ATTR_RUNTIME = 'runtime'
 @Field static final float FULL_CIRCLE_DEGREES = 360f
 @Field static final float HALF_CIRCLE_DEGREES = 180f
 @Field static final float RIGHT_ANGLE_DEGREES = 90f
@@ -35,6 +39,17 @@ import java.time.format.DateTimeFormatter
 @Field static final double ROUNDING_SCALE = 1000d
 @Field static final DateTimeFormatter TIMESTAMP_FORMATTER =
     DateTimeFormatter.ofPattern('yyyy-MM-dd HH:mm:ss z')
+@Field static final String DEFAULT_INTERVAL_LABEL = '2 Minutes'
+@Field static final Map<String, Integer> UPDATE_INTERVAL_OPTIONS = [
+    '1 Minute': 1,
+    '2 Minutes': 2,
+    '5 Minutes': 5,
+    '10 Minutes': 10,
+    '15 Minutes': 15,
+    '30 Minutes': 30,
+    '1 Hour': 60,
+    '3 Hours': 180
+]
 
 @Field static final String NUMBER = 'NUMBER'
 @Field static final String STRING = 'STRING'
@@ -47,8 +62,7 @@ metadata {
         attribute ATTR_AZIMUTH, NUMBER
         attribute ATTR_ALTITUDE, NUMBER
         attribute ATTR_LAST_UPDATE, STRING
-        attribute ATTR_SUNRISE, STRING
-        attribute ATTR_SUNSET, STRING
+        attribute ATTR_LAST_CALCULATED, STRING
         attribute ATTR_RUNTIME, NUMBER
 
         command 'updatePosition'
@@ -58,9 +72,10 @@ metadata {
     }
 
     preferences {
-        input 'selfManagedInterval', 'number', title: 'Self-update interval (minutes, 0 to disable)',
-            defaultValue: 0, range: '0..60', required: true
-        input 'logDebug', 'bool', title: 'Enable debug logging', defaultValue: false
+        input 'autoUpdate', INPUT_TYPE_BOOL, title: 'Automatically update position', defaultValue: true
+        input 'updateInterval', 'enum', title: 'Update interval', options: UPDATE_INTERVAL_OPTIONS.keySet() as List,
+            defaultValue: DEFAULT_INTERVAL_LABEL, required: true
+        input 'logDebug', INPUT_TYPE_BOOL, title: 'Enable debug logging', defaultValue: false
     }
 }
 
@@ -86,16 +101,10 @@ void updatePosition() {
 
     Instant startTime = Instant.now()
     def position = calculateSunPosition(startTime)
-    Map sunTimes = (getSunriseAndSunset() ?: [:]).collectEntries { entry ->
-        Instant eventInstant = toInstant(entry.value)
-        [entry.key, formatDate(eventInstant)]
-    }
-
     sendEvent(name: ATTR_AZIMUTH, value: position.azimuth, unit: UNIT_DEGREES)
     sendEvent(name: ATTR_ALTITUDE, value: position.altitude, unit: UNIT_DEGREES)
     sendEvent(name: ATTR_LAST_UPDATE, value: position.timestamp)
-    sendEvent(name: ATTR_SUNRISE, value: sunTimes.sunrise ?: UNKNOWN_VALUE)
-    sendEvent(name: ATTR_SUNSET, value: sunTimes.sunset ?: UNKNOWN_VALUE)
+    sendEvent(name: ATTR_LAST_CALCULATED, value: position.timestamp)
     Duration runtime = Duration.between(startTime, Instant.now())
     double runtimeSeconds = runtime.toNanos() / 1_000_000_000d
     float seconds = roundNumber(runtimeSeconds)
@@ -127,8 +136,17 @@ private int getEffectiveIntervalMinutes() {
     if (parentInterval > 0) {
         return parentInterval
     }
-    int selfInterval = (settings.selfManagedInterval ?: 0) as int
-    return selfInterval > 0 ? selfInterval : 0
+    boolean autoEnabled = (settings.autoUpdate == null) ? true : settings.autoUpdate
+    if (!autoEnabled) {
+        return 0
+    }
+    return getSelectedIntervalMinutes()
+}
+
+private int getSelectedIntervalMinutes() {
+    String selected = settings.updateInterval ?: DEFAULT_INTERVAL_LABEL
+    int fallback = UPDATE_INTERVAL_OPTIONS[DEFAULT_INTERVAL_LABEL] ?: 2
+    return UPDATE_INTERVAL_OPTIONS[selected] ?: fallback
 }
 
 private Map calculateSunPosition(Instant moment) {
@@ -237,7 +255,7 @@ private void scheduleUpdateJob(int minutes, boolean logMessage) {
         }
         runIn(minutes * SECONDS_PER_MINUTE_INT, SCHEDULE_HANDLER)
     } else if (logMessage) {
-        debugLog 'Automatic scheduling disabled; awaiting parent refresh calls'
+        debugLog 'Automatic scheduling disabled; awaiting parent or manual refresh'
     }
 }
 
@@ -246,17 +264,6 @@ private String formatDate(Instant instant) {
         return UNKNOWN_VALUE
     }
     return TIMESTAMP_FORMATTER.withZone(hubZoneId()).format(instant)
-}
-
-private Instant toInstant(Object value) {
-    if (!value) {
-        return null
-    }
-    if (value.metaClass?.respondsTo(value, 'toInstant')) {
-        return value.toInstant()
-    }
-    def timeProperty = value.metaClass?.hasProperty(value, 'time') ? value.time : null
-    return timeProperty != null ? Instant.ofEpochMilli(timeProperty as long) : null
 }
 
 private ZoneId hubZoneId() {
