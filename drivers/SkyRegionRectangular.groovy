@@ -1,5 +1,4 @@
 import groovy.transform.Field
-import java.math.RoundingMode
 
 /**
  * Advanced Heliotrope - Rectangular Sky Region Driver
@@ -24,19 +23,17 @@ import java.math.RoundingMode
 @Field static final String INPUT_DECIMAL = 'decimal'
 @Field static final String RANGE_AZIMUTH = '0..360'
 @Field static final String RANGE_ALTITUDE = '-90..90'
-@Field final BigDecimal ZERO_DEGREES = 0G
-@Field final BigDecimal FULL_CIRCLE_DEGREES = 360G
-@Field final BigDecimal MIN_ALTITUDE_DEGREES = -90G
-@Field final BigDecimal RIGHT_ANGLE_DEGREES = 90G
-@Field final BigDecimal MAX_ALTITUDE_DEGREES = RIGHT_ANGLE_DEGREES
-@Field final BigDecimal DEFAULT_MIN_AZIMUTH = RIGHT_ANGLE_DEGREES
-@Field final BigDecimal DEFAULT_MAX_AZIMUTH = 270G
-@Field final BigDecimal DEFAULT_MIN_ALTITUDE = ZERO_DEGREES
-@Field final BigDecimal DEFAULT_MAX_ALTITUDE = 70G
-@Field final BigDecimal FALLBACK_MIN_ALTITUDE = -30G
-@Field final BigDecimal FALLBACK_MAX_ALTITUDE = 60G
-@Field final int ANGLE_SCALE = 3
-@Field final int SIGNUM_NON_NEGATIVE = 0
+@Field static final double ZERO_DEGREES = 0d
+@Field static final double FULL_CIRCLE_DEGREES = 360d
+@Field static final double MIN_ALTITUDE_DEGREES = -90d
+@Field static final double MAX_ALTITUDE_DEGREES = 90d
+@Field static final double DEFAULT_MIN_AZIMUTH = 90d
+@Field static final double DEFAULT_MAX_AZIMUTH = 270d
+@Field static final double DEFAULT_MIN_ALTITUDE = 0d
+@Field static final double DEFAULT_MAX_ALTITUDE = 70d
+@Field static final double FALLBACK_MIN_ALTITUDE = -30d
+@Field static final double FALLBACK_MAX_ALTITUDE = 60d
+@Field static final double DEGREE_ROUND_SCALE = 1000d
 metadata {
     definition(
         name: 'Advanced Heliotrope Rectangular Region',
@@ -59,13 +56,13 @@ metadata {
 
     preferences {
         input 'minAzimuth', INPUT_DECIMAL, title: 'Minimum azimuth (degrees)', range: RANGE_AZIMUTH,
-            defaultValue: DEFAULT_MIN_AZIMUTH.intValue()
+            defaultValue: (int) DEFAULT_MIN_AZIMUTH
         input 'maxAzimuth', INPUT_DECIMAL, title: 'Maximum azimuth (degrees)', range: RANGE_AZIMUTH,
-            defaultValue: DEFAULT_MAX_AZIMUTH.intValue()
+            defaultValue: (int) DEFAULT_MAX_AZIMUTH
         input 'minAltitude', INPUT_DECIMAL, title: 'Minimum altitude (degrees)', range: RANGE_ALTITUDE,
-            defaultValue: DEFAULT_MIN_ALTITUDE.intValue()
+            defaultValue: (int) DEFAULT_MIN_ALTITUDE
         input 'maxAltitude', INPUT_DECIMAL, title: 'Maximum altitude (degrees)', range: RANGE_ALTITUDE,
-            defaultValue: DEFAULT_MAX_ALTITUDE.intValue()
+            defaultValue: (int) DEFAULT_MAX_ALTITUDE
         input 'logDebug', 'bool', title: 'Enable debug logging', defaultValue: false
     }
 }
@@ -93,8 +90,8 @@ void updateSunPosition(Number azimuth, Number altitude) {
         return
     }
 
-    BigDecimal normalizedAz = normalizeAzimuth(azimuth)
-    BigDecimal sanitizedAlt = sanitizeAltitude(altitude)
+    double normalizedAz = normalizeAzimuth(azimuth)
+    double sanitizedAlt = sanitizeAltitude(altitude)
 
     sendEvent(name: ATTR_LAST_AZIMUTH, value: normalizedAz, unit: DEGREE_SYMBOL)
     sendEvent(name: ATTR_LAST_ALTITUDE, value: sanitizedAlt, unit: DEGREE_SYMBOL)
@@ -112,8 +109,10 @@ private void initialize() {
 }
 
 private String summaryText() {
-    String azRange = "Az ${getMinAzimuth()}${DEGREE_SYMBOL}-${getMaxAzimuth()}${DEGREE_SYMBOL}"
-    String altRange = "Alt ${getMinAltitude()}${DEGREE_SYMBOL}-${getMaxAltitude()}${DEGREE_SYMBOL}"
+    String azRange = "Az ${formatDegrees(getMinAzimuth())}${DEGREE_SYMBOL}-" +
+        "${formatDegrees(getMaxAzimuth())}${DEGREE_SYMBOL}"
+    String altRange = "Alt ${formatDegrees(getMinAltitude())}${DEGREE_SYMBOL}-" +
+        "${formatDegrees(getMaxAltitude())}${DEGREE_SYMBOL}"
     return "${azRange} ${altRange}"
 }
 
@@ -132,9 +131,9 @@ private void applyRegionState(boolean inside) {
     }
 }
 
-private boolean isAzimuthInside(BigDecimal value) {
-    BigDecimal min = getMinAzimuth()
-    BigDecimal max = getMaxAzimuth()
+private boolean isAzimuthInside(double value) {
+    double min = getMinAzimuth()
+    double max = getMaxAzimuth()
 
     if (min <= max) {
         return value >= min && value <= max
@@ -143,62 +142,78 @@ private boolean isAzimuthInside(BigDecimal value) {
     return value >= min || value <= max
 }
 
-private boolean isAltitudeInside(BigDecimal value) {
+private boolean isAltitudeInside(double value) {
     return value >= getMinAltitude() && value <= getMaxAltitude()
 }
 
-private BigDecimal getMinAzimuth() {
+private double getMinAzimuth() {
     return normalizeAzimuth(settings.minAzimuth ?: ZERO_DEGREES)
 }
 
-private BigDecimal getMaxAzimuth() {
+private double getMaxAzimuth() {
     return normalizeAzimuth(settings.maxAzimuth ?: FULL_CIRCLE_DEGREES)
 }
 
 private Map altitudeRange() {
-    BigDecimal low = sanitizeAltitude(settings.minAltitude ?: FALLBACK_MIN_ALTITUDE)
-    BigDecimal high = sanitizeAltitude(settings.maxAltitude ?: FALLBACK_MAX_ALTITUDE)
+    double low = sanitizeAltitude(settings.minAltitude ?: FALLBACK_MIN_ALTITUDE)
+    double high = sanitizeAltitude(settings.maxAltitude ?: FALLBACK_MAX_ALTITUDE)
     if (low > high) {
-        BigDecimal swap = low
+        double swap = low
         low = high
         high = swap
     }
     return [min: low, max: high]
 }
 
-private BigDecimal getMinAltitude() {
-    return altitudeRange().min
+private double getMinAltitude() {
+    return (double) altitudeRange().min
 }
 
-private BigDecimal getMaxAltitude() {
-    return altitudeRange().max
+private double getMaxAltitude() {
+    return (double) altitudeRange().max
 }
 
-private BigDecimal normalizeAzimuth(Number value) {
-    BigDecimal degrees = toBigDecimal(value, BigDecimal.ZERO)
-    BigDecimal normalized = degrees.remainder(FULL_CIRCLE_DEGREES)
-    if (normalized.signum() < SIGNUM_NON_NEGATIVE) {
-        normalized = normalized.add(FULL_CIRCLE_DEGREES)
+private double normalizeAzimuth(Number value) {
+    double degrees = toDouble(value, ZERO_DEGREES)
+    double normalized = degrees % FULL_CIRCLE_DEGREES
+    if (normalized < 0d) {
+        normalized += FULL_CIRCLE_DEGREES
     }
-    return normalized.setScale(ANGLE_SCALE, RoundingMode.HALF_UP)
+    return roundDegrees(normalized)
 }
 
-private BigDecimal sanitizeAltitude(Number value) {
-    BigDecimal alt = toBigDecimal(value, BigDecimal.ZERO)
-    BigDecimal clamped = clamp(alt, MIN_ALTITUDE_DEGREES, MAX_ALTITUDE_DEGREES)
-    return clamped.setScale(ANGLE_SCALE, RoundingMode.HALF_UP)
+private double sanitizeAltitude(Number value) {
+    double alt = toDouble(value, ZERO_DEGREES)
+    double clamped = clamp(alt, MIN_ALTITUDE_DEGREES, MAX_ALTITUDE_DEGREES)
+    return roundDegrees(clamped)
 }
 
-private BigDecimal clamp(BigDecimal value, BigDecimal min, BigDecimal max) {
-    BigDecimal lower = value.max(min)
-    return lower.min(max)
+private double clamp(double value, double min, double max) {
+    return Math.min(Math.max(value, min), max)
 }
 
-private BigDecimal toBigDecimal(Number value, BigDecimal fallback) {
+private double toDouble(Object value, double fallback) {
     if (value == null) {
         return fallback
     }
-    return BigDecimal.valueOf(value.doubleValue())
+    if (value in Number) {
+        return ((Number) value).doubleValue()
+    }
+    try {
+        return Double.parseDouble(value.toString())
+    } catch (NumberFormatException ignored) {
+        return fallback
+    }
+}
+
+private double roundDegrees(double value) {
+    return Math.round(value * DEGREE_ROUND_SCALE) / DEGREE_ROUND_SCALE
+}
+
+private String formatDegrees(double value) {
+    double rounded = roundDegrees(value)
+    boolean isWhole = Math.abs(rounded - Math.rint(rounded)) < 0.0000001d
+    return isWhole ? rounded.toInteger().toString() : rounded.toString()
 }
 
 private String timestamp() {
