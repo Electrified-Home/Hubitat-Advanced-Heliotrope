@@ -5,7 +5,7 @@ Advanced Heliotrope pairs a Hubitat parent app with dedicated drivers that keep 
 ## Components
 
 - **Sky Regions App** (`apps/SkyRegionsApp.groovy`)
-	- Provides the UI wizard for creating regions plus an optional planning helper for sun/window math
+	- Provides the UI wizard for creating regions and basic device management
 	- Ensures exactly one Sun Position driver exists and links each region to it
 	- Stays passive at runtime—there is no scheduling or event forwarding in the app itself
 - **Sun Position Driver** (`drivers/SunPositionDriver.groovy`)

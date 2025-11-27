@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Documentation now matches the simplified runtime model where the Sky Regions app only installs/configures devices.
+- Removed references to the deprecated planning helper and nonexistent `lastUpdate` attribute from README/usage docs.
 - Sun Position driver description updated to cover `autoUpdate`, interval dropdown, and direct child notifications.
 - Region documentation now highlights the motion-only capability and lack of auxiliary timestamps.
 - Installation guide reminds users to review Sun Position preferences after running the wizard.

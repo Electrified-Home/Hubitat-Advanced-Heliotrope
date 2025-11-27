@@ -14,7 +14,7 @@ SkyRegionsApp.groovy (parent app)
 
 Key responsibilities:
 
-- **Parent app** – Owns the device graph, exposes the configuration UI (creation + planning helper), and ensures every region links to the shared sun driver. It does not schedule anything at runtime.
+- **Parent app** – Owns the device graph, exposes the configuration UI for creating regions, and ensures every region links to the shared sun driver. It does not schedule anything at runtime.
 - **Sun driver** – Performs the astronomical calculations using the hub’s latitude/longitude and time zone, publishing to all children.
 - **Region drivers** – Contain isolated geometry logic so adding new region types only requires a new driver file.
 
