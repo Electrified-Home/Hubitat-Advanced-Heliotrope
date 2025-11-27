@@ -9,7 +9,7 @@ if (-not (Test-Path -Path $Path -PathType Container)) {
 Push-Location -Path $Path
 try {
     Write-Host "Running npm-groovy-lint in $Path" -ForegroundColor Cyan
-    npx npm-groovy-lint lint .
+    npx npm-groovy-lint lint apps drivers
 } finally {
     Pop-Location
 }

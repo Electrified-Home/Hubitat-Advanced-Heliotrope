@@ -66,7 +66,6 @@ import java.time.format.DateTimeFormatter
 /* groovylint-disable-next-line DuplicateNumberLiteral */
 @Field static final float SECONDS_PER_MINUTE = 60f
 @Field static final float SECONDS_PER_HOUR = 3600f
-@Field static final int SECONDS_PER_MINUTE_INT = 60
 @Field static final long MILLIS_PER_DAY = 86_400_000L
 @Field static final double JULIAN_DATE_OFFSET = 2440587.5d
 @Field static final double J2000_REFERENCE = 2451545.0d
@@ -86,6 +85,16 @@ import java.time.format.DateTimeFormatter
     '30 Minutes': 30,
     '1 Hour': 60,
     '3 Hours': 180
+]
+@Field static final Map<Integer, String> UPDATE_INTERVAL_CRON = [
+    (1)  : '0 * * * * ?',
+    (2)  : '0 0/2 * * * ?',
+    (5)  : '0 0/5 * * * ?',
+    (10) : '0 0/10 * * * ?',
+    (15) : '0 0/15 * * * ?',
+    (30) : '0 0/30 * * * ?',
+    (60) : '0 0 * * * ?',
+    (180): '0 0 0/3 * * ?'
 ]
 
 @Field static final String NUMBER = 'NUMBER'
@@ -146,7 +155,6 @@ void updatePosition() {
 
 void scheduledUpdate() {
     updatePosition()
-    scheduleUpdateJob(getEffectiveIntervalMinutes())
 }
 
 Map registerRegionDevice(String label, String typeKey, Map geometry = [:]) {
@@ -198,7 +206,6 @@ Map getSunPositionAtMillis(Long epochMillis) {
 }
 
 private void initialize() {
-    unschedule()
     scheduleUpdateJob(getEffectiveIntervalMinutes())
 }
 
@@ -331,9 +338,17 @@ private Map calculateSunPosition(Instant moment) {
 }
 
 private void scheduleUpdateJob(int minutes) {
-    if (minutes > 0) {
-        runIn(minutes * SECONDS_PER_MINUTE_INT, SCHEDULE_HANDLER)
+    unschedule()
+    if (minutes <= 0) {
+        log.info 'Sun position auto updates disabled; no schedule created'
+        return
     }
+    String cron = UPDATE_INTERVAL_CRON[minutes]
+    if (!cron) {
+        log.warn "Unsupported interval ${minutes} minute(s); sun position will not auto-update"
+        return
+    }
+    schedule(cron, SCHEDULE_HANDLER)
 }
 
 private String formatDate(Instant instant) {

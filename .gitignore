@@ -13,3 +13,6 @@ Thumbs.db
 # Build artifacts (reserved)
 dist/
 build/
+
+# Root-level loose scripts
+/*.groovy
