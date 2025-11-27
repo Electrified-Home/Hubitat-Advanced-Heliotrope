@@ -15,6 +15,9 @@
  */
 
 import groovy.transform.Field
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 /**
  * Advanced Heliotrope - Rectangular Sky Region Driver
@@ -40,6 +43,14 @@ import groovy.transform.Field
 @Field static final double FALLBACK_MIN_ALTITUDE = -30d
 @Field static final double FALLBACK_MAX_ALTITUDE = 60d
 @Field static final double DEGREE_ROUND_SCALE = 1000d
+@Field static final String NEVER_TIME_VALUE = 'Never'
+@Field static final long MILLIS_PER_DAY = 86_400_000L
+@Field static final long WINDOW_STEP_MINUTES = 5L
+@Field static final long WINDOW_STEP_SECONDS = 300L
+@Field static final int WINDOW_REFINE_ITERATIONS = 8
+@Field static final long WINDOW_SEARCH_DAYS = 2L
+@Field static final DateTimeFormatter WINDOW_TIME_FORMATTER = DateTimeFormatter.ofPattern('yyyy-MM-dd HH:mm')
+@Field static final String COMMAND_CALCULATE_WINDOW = 'calculateNextWindow'
 metadata {
     definition(
         name: 'Advanced Heliotrope Region, Rectangular',
@@ -48,6 +59,7 @@ metadata {
     ) {
         capability 'Sensor'
         capability 'MotionSensor'
+        command COMMAND_CALCULATE_WINDOW
     }
 
     preferences {
@@ -70,6 +82,10 @@ void updated() {
     initialize()
 }
 
+void calculateNextWindow() {
+    performWindowPrediction()
+}
+
 void updateSunPosition(Number azimuth, Number altitude) {
     if (azimuth == null || altitude == null) {
         return
@@ -82,17 +98,167 @@ void updateSunPosition(Number azimuth, Number altitude) {
     applyRegionState(inside)
 }
 
+void updateNextWindow(String entryTime, String exitTime) {
+    state.nextEntry = entryTime
+    state.nextExit = exitTime
+}
+
+boolean regionContains(Number azimuth, Number altitude) {
+    if (azimuth == null || altitude == null) {
+        return false
+    }
+    double normalizedAz = normalizeAzimuth(azimuth)
+    double sanitizedAlt = sanitizeAltitude(altitude)
+    return isAzimuthInside(normalizedAz) && isAltitudeInside(sanitizedAlt)
+}
+
 private void initialize() {
-    sendEvent(name: ATTR_MOTION, value: '')
+    Map position = fetchSunPosition(Instant.now())
+    Number azimuth = position.azimuth as Number
+    Number altitude = position.altitude as Number
+    if (azimuth != null && altitude != null) {
+        updateSunPosition(azimuth, altitude)
+    } else {
+        sendEvent(name: ATTR_MOTION, value: '')
+    }
+    calculateNextWindow()
 }
 
 private void applyRegionState(boolean inside) {
     sendEvent(name: ATTR_MOTION, value: inside ? MOTION_ACTIVE : MOTION_INACTIVE)
 }
 
+private void performWindowPrediction() {
+    if (!isLocationConfigured()) {
+        updateNextWindow(NEVER_TIME_VALUE, NEVER_TIME_VALUE)
+        return
+    }
+    Instant startInstant = Instant.now()
+    Instant endInstant = startInstant.plusMillis(WINDOW_SEARCH_DAYS * MILLIS_PER_DAY)
+    Map<Long, Map> cache = [:]
+    Map result = evaluateRegionWindow(startInstant, endInstant, cache)
+    updateNextWindow(formatWindowValue((Instant) result.entry), formatWindowValue((Instant) result.exit))
+}
+
+private Map evaluateRegionWindow(Instant startInstant, Instant endInstant, Map<Long, Map> cache) {
+    Instant cursor = startInstant
+    boolean cursorInside = regionContainsAt(cursor, cache)
+    Instant entryInstant = cursorInside ? cursor : null
+    Instant exitInstant = null
+    long stepSeconds = WINDOW_STEP_SECONDS
+
+    while (cursor.isBefore(endInstant)) {
+        Instant nextInstant = cursor.plusSeconds(stepSeconds)
+        if (nextInstant.isAfter(endInstant)) {
+            nextInstant = endInstant
+        }
+
+        boolean nextInside = regionContainsAt(nextInstant, cache)
+        if (!cursorInside && nextInside && entryInstant == null) {
+            entryInstant = refineBoundary(cursor, nextInstant, true, cache)
+        }
+        if (cursorInside && !nextInside) {
+            exitInstant = refineBoundary(cursor, nextInstant, false, cache)
+            if (entryInstant == null) {
+                entryInstant = cursor
+            }
+            break
+        }
+
+        cursorInside = nextInside
+        cursor = nextInstant
+    }
+
+    return [entry: entryInstant, exit: exitInstant]
+}
+
+private Instant refineBoundary(Instant lowerInstant, Instant upperInstant, boolean targetInside,
+        Map<Long, Map> cache) {
+    Instant lower = lowerInstant
+    Instant upper = upperInstant
+
+    for (int idx = 0; idx < WINDOW_REFINE_ITERATIONS; idx++) {
+        long windowMillis = upper.toEpochMilli() - lower.toEpochMilli()
+        if (windowMillis <= 1L) {
+            break
+        }
+        long midpointMillis = lower.toEpochMilli() + (windowMillis / 2L)
+        Instant midpoint = Instant.ofEpochMilli(midpointMillis)
+        boolean midpointInside = regionContainsAt(midpoint, cache)
+        if (midpointInside == targetInside) {
+            upper = midpoint
+        } else {
+            lower = midpoint
+        }
+    }
+
+    return upper
+}
+
+private boolean regionContainsAt(Instant instant, Map<Long, Map> cache) {
+    Map position = getCachedPosition(instant, cache)
+    if (!position) {
+        return false
+    }
+    Number azimuth = position.azimuth as Number
+    Number altitude = position.altitude as Number
+    if (azimuth == null || altitude == null) {
+        return false
+    }
+    return regionContains(azimuth, altitude)
+}
+
+private Map getCachedPosition(Instant instant, Map<Long, Map> cache) {
+    if (!instant) {
+        return [:]
+    }
+    Long key = instant.toEpochMilli()
+    Map cached = cache[key]
+    if (cached) {
+        return cached
+    }
+    Map position = fetchSunPosition(instant)
+    cache[key] = position
+    return position
+}
+
+private Map fetchSunPosition(Instant instant) {
+    if (!instant) {
+        return [:]
+    }
+    if (!parent) {
+        log.warn 'Parent sun driver is not available for sun position queries'
+        return [:]
+    }
+    try {
+        return parent.getSunPositionAtMillis(instant.toEpochMilli()) ?: [:]
+    } catch (MissingMethodException ignored) {
+        log.warn 'Parent sun driver does not expose getSunPositionAtMillis(Long)'
+        return [:]
+    }
+}
+
+private String formatWindowValue(Instant instant) {
+    if (!instant) {
+        return NEVER_TIME_VALUE
+    }
+    return WINDOW_TIME_FORMATTER.withZone(hubZoneId()).format(instant)
+}
+
+private ZoneId hubZoneId() {
+    def tz = location?.timeZone
+    return tz ? tz.toZoneId() : ZoneId.systemDefault()
+}
+
+private boolean isLocationConfigured() {
+    return location?.latitude != null && location?.longitude != null
+}
+
 private boolean isAzimuthInside(double value) {
-    double min = getMinAzimuth()
-    double max = getMaxAzimuth()
+    double minSetting = settings.minAzimuth != null ? settings.minAzimuth : ZERO_DEGREES
+    double maxSetting = settings.maxAzimuth != null ? settings.maxAzimuth : FULL_CIRCLE_DEGREES
+    double min = normalizeAzimuth(minSetting)
+    double max = normalizeAzimuth(maxSetting)
 
     if (min <= max) {
         return value >= min && value <= max
@@ -102,34 +268,16 @@ private boolean isAzimuthInside(double value) {
 }
 
 private boolean isAltitudeInside(double value) {
-    return value >= getMinAltitude() && value <= getMaxAltitude()
-}
-
-private double getMinAzimuth() {
-    return normalizeAzimuth(settings.minAzimuth ?: ZERO_DEGREES)
-}
-
-private double getMaxAzimuth() {
-    return normalizeAzimuth(settings.maxAzimuth ?: FULL_CIRCLE_DEGREES)
-}
-
-private Map altitudeRange() {
-    double low = sanitizeAltitude(settings.minAltitude ?: FALLBACK_MIN_ALTITUDE)
-    double high = sanitizeAltitude(settings.maxAltitude ?: FALLBACK_MAX_ALTITUDE)
+    double minSetting = settings.minAltitude != null ? settings.minAltitude : FALLBACK_MIN_ALTITUDE
+    double maxSetting = settings.maxAltitude != null ? settings.maxAltitude : FALLBACK_MAX_ALTITUDE
+    double low = sanitizeAltitude(minSetting)
+    double high = sanitizeAltitude(maxSetting)
     if (low > high) {
         double swap = low
         low = high
         high = swap
     }
-    return [min: low, max: high]
-}
-
-private double getMinAltitude() {
-    return (double) altitudeRange().min
-}
-
-private double getMaxAltitude() {
-    return (double) altitudeRange().max
+    return value >= low && value <= high
 }
 
 private double normalizeAzimuth(Number value) {

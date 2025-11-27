@@ -185,6 +185,18 @@ Map removeRegionDeviceById(Object deviceId) {
     }
 }
 
+Map getSunPositionAtMillis(Long epochMillis) {
+    if (epochMillis == null) {
+        return [:]
+    }
+    Instant instant = Instant.ofEpochMilli(epochMillis)
+    if (!isLocationConfigured()) {
+        log.warn 'Cannot provide sun position because hub location is not configured'
+        return [:]
+    }
+    return calculateSunPosition(instant)
+}
+
 private void initialize() {
     unschedule()
     scheduleUpdateJob(getEffectiveIntervalMinutes())
