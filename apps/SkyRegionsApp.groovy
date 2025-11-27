@@ -18,6 +18,8 @@
  * Advanced Heliotrope - Sky Regions Parent App
  */
 
+import groovy.transform.Field
+
 @Field static final Map REGION_TYPES = [
     circular   : [driver: 'SkyRegionCircular', description: 'Circular (center + radius)'],
     rectangular: [driver: 'SkyRegionRectangular', description: 'Rectangular (min/max azimuth & altitude)']
