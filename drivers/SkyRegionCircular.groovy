@@ -74,7 +74,6 @@ void updateSunPosition(Number azimuth, Number altitude) {
 
     double normalizedAz = normalizeAzimuth(azimuth)
     double sanitizedAlt = sanitizeAltitude(altitude)
-
     double distance = angularDistance(normalizedAz, sanitizedAlt, getCenterAzimuth(), getCenterAltitude())
 
     boolean inside = distance <= getRadius()

@@ -26,6 +26,7 @@ import java.time.format.DateTimeFormatter
  * Calculates the current sun azimuth/altitude for the hub location and shares
  * the results with the parent app so region drivers can react.
  */
+/* groovylint-disable MethodCount */
 @Field static final String UNIT_DEGREES = '°'
 @Field static final String UNKNOWN_VALUE = 'Unknown'
 @Field static final String INPUT_TYPE_BOOL = 'bool'
