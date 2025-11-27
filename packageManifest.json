@@ -1,8 +1,49 @@
 {
-  "packageName": "Hubitat Advanced Heliotrope",
-  "version": "0.0.0",
-  "minimumHEVersion": "2.3.0",
+  "packageName": "Advanced Heliotrope",
   "author": "Electrified-Home",
-  "apps": [],
-  "drivers": []
+  "version": "1.0.0",
+  "minimumHEVersion": "2.3.0",
+  "dateReleased": "2025-11-26",
+  "license": "GPLv3",
+  "documentationLink": "https://github.com/Electrified-Home/Hubitat-Advanced-Heliotrope/blob/main/docs/README.md",
+  "releaseNotes": "Initial release with parent app, sun driver, and circular/rectangular regions.",
+  "apps": [
+    {
+      "id": "sky-regions-parent",
+      "name": "Advanced Heliotrope - Sky Regions",
+      "namespace": "electrified-home",
+      "location": "https://raw.githubusercontent.com/Electrified-Home/Hubitat-Advanced-Heliotrope/main/apps/SkyRegionsApp.groovy",
+      "required": true,
+      "oauth": false,
+      "primary": true,
+      "parent": false,
+      "importUrl": "https://raw.githubusercontent.com/Electrified-Home/Hubitat-Advanced-Heliotrope/main/apps/SkyRegionsApp.groovy"
+    }
+  ],
+  "drivers": [
+    {
+      "id": "sun-position-driver",
+      "name": "Advanced Heliotrope Sun Position",
+      "namespace": "electrified-home",
+      "location": "https://raw.githubusercontent.com/Electrified-Home/Hubitat-Advanced-Heliotrope/main/drivers/SunPositionDriver.groovy",
+      "importUrl": "https://raw.githubusercontent.com/Electrified-Home/Hubitat-Advanced-Heliotrope/main/drivers/SunPositionDriver.groovy",
+      "required": true
+    },
+    {
+      "id": "sky-region-circular",
+      "name": "Advanced Heliotrope Circular Region",
+      "namespace": "electrified-home",
+      "location": "https://raw.githubusercontent.com/Electrified-Home/Hubitat-Advanced-Heliotrope/main/drivers/SkyRegionCircular.groovy",
+      "importUrl": "https://raw.githubusercontent.com/Electrified-Home/Hubitat-Advanced-Heliotrope/main/drivers/SkyRegionCircular.groovy",
+      "required": true
+    },
+    {
+      "id": "sky-region-rectangular",
+      "name": "Advanced Heliotrope Rectangular Region",
+      "namespace": "electrified-home",
+      "location": "https://raw.githubusercontent.com/Electrified-Home/Hubitat-Advanced-Heliotrope/main/drivers/SkyRegionRectangular.groovy",
+      "importUrl": "https://raw.githubusercontent.com/Electrified-Home/Hubitat-Advanced-Heliotrope/main/drivers/SkyRegionRectangular.groovy",
+      "required": true
+    }
+  ]
 }

@@ -13,11 +13,11 @@ A Hubitat app and driver suite that provides advanced sun-position tracking with
 ```
 Hubitat-Advanced-Heliotrope/
 ├── apps/
-│   └── advanced-heliotrope-app.groovy
+│   └── SkyRegionsApp.groovy
 ├── drivers/
-│   ├── advanced-heliotrope-driver.groovy
-│   ├── advanced-heliotrope-sky-region.groovy
-│   └── advanced-heliotrope-sun-position.groovy
+│   ├── SunPositionDriver.groovy
+│   ├── SkyRegionCircular.groovy
+│   └── SkyRegionRectangular.groovy
 ├── docs/
 │   ├── README.md
 │   ├── INSTALLATION.md

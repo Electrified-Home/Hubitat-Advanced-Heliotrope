@@ -1,0 +1,44 @@
+{
+    "extends": "recommended",
+    "rules": {
+        "CompileStatic": {
+            "enabled": false
+        },
+        "ConsecutiveBlankLines": {
+            "enabled": false
+        },
+        "DoubleInstantiation": {
+            "enabled": false
+        },
+        "DuplicateNumberLiteral": {
+            "enabled": false
+        },
+        "FloatInstantiation": {
+            "enabled": false
+        },
+        "IfStatementBraces": {
+            "enabled": false
+        },
+        "MethodReturnTypeRequired": {
+            "enabled": false
+        },
+        "NoDef": {
+            "enabled": false
+        },
+        "NoDouble": {
+            "enabled": false
+        },
+        "NoFloat": {
+            "enabled": false
+        },
+        "UnnecessaryGetter": {
+            "enabled": false
+        },
+        "VariableName": {
+            "enabled": false
+        },
+        "VariableTypeRequired": {
+            "enabled": false
+        }
+    }
+}
