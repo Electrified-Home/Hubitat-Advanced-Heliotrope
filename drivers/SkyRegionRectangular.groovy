@@ -18,6 +18,9 @@ import groovy.transform.Field
 @Field static final String ATTR_SUMMARY = 'regionSummary'
 @Field static final String ATTR_ENTERED = 'enteredRegion'
 @Field static final String ATTR_EXITED = 'exitedRegion'
+@Field static final String ATTR_MOTION = 'motion'
+@Field static final String MOTION_ACTIVE = 'active'
+@Field static final String MOTION_INACTIVE = 'inactive'
 @Field static final String TYPE_NUMBER = 'NUMBER'
 @Field static final String TYPE_STRING = 'STRING'
 @Field static final String INPUT_DECIMAL = 'decimal'
@@ -41,6 +44,7 @@ metadata {
         author: 'Electrified Home'
     ) {
         capability 'Sensor'
+        capability 'MotionSensor'
 
         attribute ATTR_IN_REGION, 'ENUM'
         attribute ATTR_REGION_STATUS, TYPE_STRING
@@ -83,6 +87,7 @@ void clearHistory() {
     sendEvent(name: ATTR_EXITED, value: '')
     sendEvent(name: ATTR_IN_REGION, value: FLAG_FALSE)
     sendEvent(name: ATTR_REGION_STATUS, value: STATUS_OUTSIDE)
+    sendEvent(name: ATTR_MOTION, value: MOTION_INACTIVE)
 }
 
 void updateSunPosition(Number azimuth, Number altitude) {
@@ -105,6 +110,7 @@ private void initialize() {
     sendEvent(name: ATTR_SUMMARY, value: summaryText())
     if (state.inRegion == null) {
         state.inRegion = false
+        applyRegionState(false)
     }
 }
 
@@ -120,9 +126,17 @@ private void applyRegionState(boolean inside) {
     String status = inside ? STATUS_INSIDE : STATUS_OUTSIDE
     sendEvent(name: ATTR_IN_REGION, value: inside ? FLAG_TRUE : FLAG_FALSE)
     sendEvent(name: ATTR_REGION_STATUS, value: status)
+    sendEvent(name: ATTR_MOTION, value: inside ? MOTION_ACTIVE : MOTION_INACTIVE)
 
-    if (state.inRegion == null || state.inRegion != inside) {
-        state.inRegion = inside
+    Boolean previousState = (state.inRegion as Boolean)
+    state.inRegion = inside
+    if (previousState == null) {
+        if (inside) {
+            sendEvent(name: ATTR_ENTERED, value: timestamp())
+        }
+        return
+    }
+    if (previousState != inside) {
         if (inside) {
             sendEvent(name: ATTR_ENTERED, value: timestamp())
         } else {
