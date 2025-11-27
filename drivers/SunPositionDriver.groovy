@@ -15,7 +15,6 @@
  */
 
 import groovy.transform.Field
-import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -28,15 +27,12 @@ import java.time.format.DateTimeFormatter
  * the results with the parent app so region drivers can react.
  */
 @Field static final String UNIT_DEGREES = '°'
-@Field static final String UNIT_SECONDS = 's'
 @Field static final String UNKNOWN_VALUE = 'Unknown'
 @Field static final String INPUT_TYPE_BOOL = 'bool'
 @Field static final String SCHEDULE_HANDLER = 'scheduledUpdate'
 @Field static final String ATTR_AZIMUTH = 'azimuth'
 @Field static final String ATTR_ALTITUDE = 'altitude'
-@Field static final String ATTR_LAST_UPDATE = 'lastUpdate'
 @Field static final String ATTR_LAST_CALCULATED = 'lastCalculated'
-@Field static final String ATTR_RUNTIME = 'runtime'
 @Field static final float FULL_CIRCLE_DEGREES = 360f
 @Field static final float HALF_CIRCLE_DEGREES = 180f
 @Field static final float RIGHT_ANGLE_DEGREES = 90f
@@ -77,21 +73,14 @@ metadata {
 
         attribute ATTR_AZIMUTH, NUMBER
         attribute ATTR_ALTITUDE, NUMBER
-        attribute ATTR_LAST_UPDATE, STRING
         attribute ATTR_LAST_CALCULATED, STRING
-        attribute ATTR_RUNTIME, NUMBER
-
-        command 'updatePosition'
-        command 'setUpdateInterval', [
-            [name: 'Minutes', type: NUMBER, description: 'Override interval from parent/app']
-        ]
     }
 
     preferences {
         input 'autoUpdate', INPUT_TYPE_BOOL, title: 'Automatically update position', defaultValue: true
-        input 'updateInterval', 'enum', title: 'Update interval', options: UPDATE_INTERVAL_OPTIONS.keySet() as List,
+        input 'updateInterval', 'enum', title: 'Update interval',
+            options: UPDATE_INTERVAL_OPTIONS.keySet() as List,
             defaultValue: DEFAULT_INTERVAL_LABEL, required: true
-        input 'logDebug', INPUT_TYPE_BOOL, title: 'Enable debug logging', defaultValue: false
     }
 }
 
@@ -119,39 +108,22 @@ void updatePosition() {
     def position = calculateSunPosition(startTime)
     sendEvent(name: ATTR_AZIMUTH, value: position.azimuth, unit: UNIT_DEGREES)
     sendEvent(name: ATTR_ALTITUDE, value: position.altitude, unit: UNIT_DEGREES)
-    sendEvent(name: ATTR_LAST_UPDATE, value: position.timestamp)
     sendEvent(name: ATTR_LAST_CALCULATED, value: position.timestamp)
-    Duration runtime = Duration.between(startTime, Instant.now())
-    double runtimeSeconds = runtime.toNanos() / 1_000_000_000d
-    float seconds = roundNumber(runtimeSeconds)
-    sendEvent(name: ATTR_RUNTIME, value: seconds, unit: UNIT_SECONDS)
 
-    debugLog "Sun update azimuth=${position.azimuth} altitude=${position.altitude}"
     notifyChildRegions(position)
-}
-
-void setUpdateInterval(Number minutes) {
-    int overrideMinutes = minutes ? minutes.toInteger() : 0
-    state.parentInterval = overrideMinutes
-    debugLog "Parent interval override set to ${overrideMinutes} minutes"
-    initialize()
 }
 
 void scheduledUpdate() {
     updatePosition()
-    scheduleUpdateJob(getEffectiveIntervalMinutes(), false)
+    scheduleUpdateJob(getEffectiveIntervalMinutes())
 }
 
 private void initialize() {
     unschedule()
-    scheduleUpdateJob(getEffectiveIntervalMinutes(), true)
+    scheduleUpdateJob(getEffectiveIntervalMinutes())
 }
 
 private int getEffectiveIntervalMinutes() {
-    int parentInterval = (state.parentInterval ?: 0) as int
-    if (parentInterval > 0) {
-        return parentInterval
-    }
     boolean autoEnabled = (settings.autoUpdate == null) ? true : settings.autoUpdate
     if (!autoEnabled) {
         return 0
@@ -160,9 +132,24 @@ private int getEffectiveIntervalMinutes() {
 }
 
 private int getSelectedIntervalMinutes() {
-    String selected = settings.updateInterval ?: DEFAULT_INTERVAL_LABEL
-    int fallback = UPDATE_INTERVAL_OPTIONS[DEFAULT_INTERVAL_LABEL] ?: 2
-    return UPDATE_INTERVAL_OPTIONS[selected] ?: fallback
+    def selected = settings.updateInterval ?: DEFAULT_INTERVAL_LABEL
+    int parsed = parseIntervalMinutes(selected)
+    return parsed > 0 ? parsed : (UPDATE_INTERVAL_OPTIONS[DEFAULT_INTERVAL_LABEL] ?: 2)
+}
+
+private int parseIntervalMinutes(Object selected) {
+    if (selected == null) {
+        return 0
+    }
+    String text = selected as String
+    if (UPDATE_INTERVAL_OPTIONS.containsKey(text)) {
+        return UPDATE_INTERVAL_OPTIONS[text]
+    }
+    try {
+        return Integer.parseInt(text)
+    } catch (NumberFormatException ignored) {
+        return 0
+    }
 }
 
 private Map calculateSunPosition(Instant moment) {
@@ -264,14 +251,9 @@ private Map calculateSunPosition(Instant moment) {
     ]
 }
 
-private void scheduleUpdateJob(int minutes, boolean logMessage) {
+private void scheduleUpdateJob(int minutes) {
     if (minutes > 0) {
-        if (logMessage) {
-            debugLog "Scheduling automatic sun updates every ${minutes} minute(s)"
-        }
         runIn(minutes * SECONDS_PER_MINUTE_INT, SCHEDULE_HANDLER)
-    } else if (logMessage) {
-        debugLog 'Automatic scheduling disabled; awaiting parent or manual refresh'
     }
 }
 
@@ -322,10 +304,4 @@ private void notifyChildRegions(Map position) {
 
 private boolean isLocationConfigured() {
     return location?.latitude != null && location?.longitude != null
-}
-
-private void debugLog(String message) {
-    if (settings.logDebug) {
-        log.debug message
-    }
 }

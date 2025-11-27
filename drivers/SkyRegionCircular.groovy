@@ -40,7 +40,11 @@ import groovy.transform.Field
 @Field static final double DEFAULT_CENTER_ALTITUDE = 45d
 @Field static final double ROUND_SCALE = 1000d
 metadata {
-    definition(name: 'Advanced Heliotrope Circular Region', namespace: 'electrified-home', author: 'Electrified Home') {
+    definition(
+        name: 'Advanced Heliotrope Circular Region',
+        namespace: 'electrified-home',
+        author: 'Electrified Home'
+    ) {
         capability 'Sensor'
         capability 'MotionSensor'
 
