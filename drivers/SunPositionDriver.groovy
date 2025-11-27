@@ -357,7 +357,7 @@ private void notifyChildRegions(Map position) {
         return
     }
     children.each { child ->
-        if (child?.metaClass?.respondsTo(child, COMMAND_UPDATE_SUN, Number, Number)) {
+        if (child?.hasCommand(COMMAND_UPDATE_SUN)) {
             child.updateSunPosition(position.azimuth as Number, position.altitude as Number)
         } else {
             log.warn "Child device ${child?.displayName ?: child?.deviceNetworkId} cannot accept sun position updates"
