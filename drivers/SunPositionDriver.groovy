@@ -37,7 +37,11 @@ import java.time.format.DateTimeFormatter
 @Field static final String ATTR_LAST_CALCULATED = 'lastCalculated'
 @Field static final String COMMAND_UPDATE_SUN = 'updateSunPosition'
 @Field static final String DATA_REGION_TYPE = 'regionType'
-@Field static final String REGION_DNI_PREFIX = 'AH-REGION'
+@Field static final String REGION_DNI_PREFIX = 'AH-REG'
+@Field static final Map REGION_TYPE_PREFIX = [
+    circular   : 'AH-REG-CIRC',
+    rectangular: 'AH-REG-RECT'
+]
 @Field static final String HUB_NAMESPACE = 'electrified-home'
 @Field static final Map REGION_DRIVER_MAP = [
     circular   : 'Advanced Heliotrope Region, Circular',
@@ -383,8 +387,8 @@ private Map getRegionDefaultGeometry(String typeKey) {
 }
 
 private String generateRegionDni(String typeKey) {
-    String normalized = typeKey?.toString()?.toUpperCase() ?: 'UNKNOWN'
-    return "${REGION_DNI_PREFIX}-${normalized}-${UUID.randomUUID()}"
+    String prefix = REGION_TYPE_PREFIX[typeKey] ?: REGION_DNI_PREFIX
+    return "${prefix}-${UUID.randomUUID()}"
 }
 
 private void applyRegionInitialSettings(Object device, String typeKey, Map geometry) {
