@@ -38,6 +38,8 @@ import java.time.format.DateTimeParseException
 @Field static final String ATTR_LAST_CALCULATED = 'lastCalculated'
 @Field static final String STATE_NEXT_SUNRISE_AZIMUTH = 'nextSunriseAzimuth'
 @Field static final String STATE_NEXT_SUNSET_AZIMUTH = 'nextSunsetAzimuth'
+@Field static final String EVENT_SUNRISE = 'sunrise'
+@Field static final String EVENT_SUNSET = 'sunset'
 @Field static final String COMMAND_UPDATE_SUN = 'updateSunPosition'
 @Field static final String DATA_REGION_TYPE = 'regionType'
 @Field static final String REGION_DNI_PREFIX = 'AH-REG'
@@ -159,24 +161,11 @@ void updatePosition() {
 void calculateSolarStats() {
     log.info 'Manual solar stats calculation requested'
     Map sunInfo = getSunriseAndSunset()
-    Double sunriseAz = calculateAzimuthForInstant(toInstant(sunInfo?.nextSunrise))
-    Double sunsetAz = calculateAzimuthForInstant(toInstant(sunInfo?.nextSunset))
+    Instant sunriseInstant = resolveSunEventInstant(sunInfo, EVENT_SUNRISE, 'nextSunrise', EVENT_SUNRISE)
+    Instant sunsetInstant = resolveSunEventInstant(sunInfo, EVENT_SUNSET, 'nextSunset', EVENT_SUNSET)
 
-    if (sunriseAz != null) {
-        state[STATE_NEXT_SUNRISE_AZIMUTH] = sunriseAz
-        log.info "Next sunrise azimuth stored as ${sunriseAz}°"
-    } else {
-        state.remove(STATE_NEXT_SUNRISE_AZIMUTH)
-        log.warn 'Next sunrise azimuth unavailable from hub data'
-    }
-
-    if (sunsetAz != null) {
-        state[STATE_NEXT_SUNSET_AZIMUTH] = sunsetAz
-        log.info "Next sunset azimuth stored as ${sunsetAz}°"
-    } else {
-        state.remove(STATE_NEXT_SUNSET_AZIMUTH)
-        log.warn 'Next sunset azimuth unavailable from hub data'
-    }
+    storeSunEventAzimuth(sunriseInstant, STATE_NEXT_SUNRISE_AZIMUTH, EVENT_SUNRISE)
+    storeSunEventAzimuth(sunsetInstant, STATE_NEXT_SUNSET_AZIMUTH, EVENT_SUNSET)
 }
 
 void scheduledUpdate() {
@@ -385,29 +374,100 @@ private Double calculateAzimuthForInstant(Instant instant) {
     return position?.azimuth as Double
 }
 
+private void storeSunEventAzimuth(Instant instant, String stateKey, String eventLabel) {
+    Double azimuth = calculateAzimuthForInstant(instant)
+    if (azimuth != null) {
+        state[stateKey] = azimuth
+        log.info "Next ${eventLabel} azimuth stored as ${azimuth}${UNIT_DEGREES}"
+        return
+    }
+    state.remove(stateKey)
+    log.warn "Next ${eventLabel} azimuth unavailable from hub data"
+}
+
+private Instant resolveSunEventInstant(Map sunInfo, String eventLabel, String... candidateKeys) {
+    if (!sunInfo || !candidateKeys) {
+        return null
+    }
+    for (int index = 0; index < candidateKeys.length; index++) {
+        String key = candidateKeys[index]
+        Instant candidate = toInstant(sunInfo[key])
+        if (candidate) {
+            if (index > 0) {
+                log.info "Using ${key} for ${eventLabel} azimuth because ${candidateKeys[0]} was unavailable"
+            }
+            return candidate
+        }
+    }
+    return null
+}
+
 private Instant toInstant(Object value) {
     if (!value) {
         return null
     }
-    def timeProperty = value.metaClass?.hasProperty(value, 'time') ? value.time : null
-    if (timeProperty != null) {
-        try {
-            long epochMillis = Long.parseLong(timeProperty.toString())
-            return Instant.ofEpochMilli(epochMillis)
-        } catch (NumberFormatException ignored) {
-            // Continue to other conversion strategies
-        }
+    switch (value) {
+        case Instant:
+            return value as Instant
+        case Date:
+            return Instant.ofEpochMilli((value as Date).time)
+        case Number:
+            return Instant.ofEpochMilli((value as Number).longValue())
+        case CharSequence:
+            return parseInstantFromString(value.toString().trim())
+        default:
+            break
+    }
+    Instant fromTimeProperty = extractInstantFromTimeProperty(value)
+    if (fromTimeProperty) {
+        return fromTimeProperty
     }
     if (value.metaClass?.respondsTo(value, 'toInstant')) {
         def instantValue = value.toInstant()
-        if (instantValue?.metaClass?.respondsTo(instantValue, 'toEpochMilli')) {
-            return Instant.ofEpochMilli((long) instantValue.toEpochMilli())
+        Instant resolved = toInstant(instantValue)
+        if (resolved) {
+            return resolved
         }
-        try {
-            return Instant.parse(instantValue?.toString())
-        } catch (DateTimeParseException ignored) {
-            // Fall through to return null
-        }
+    }
+    return parseInstantFromString(value.toString())
+}
+
+private Instant extractInstantFromTimeProperty(Object value) {
+    def timeProperty = value.metaClass?.hasProperty(value, 'time') ? value.time : null
+    if (timeProperty == null) {
+        return null
+    }
+    return toInstant(timeProperty)
+}
+
+private Instant parseInstantFromString(String text) {
+    if (!text) {
+        return null
+    }
+    Instant epochInstant = parseEpochMillis(text)
+    if (epochInstant) {
+        return epochInstant
+    }
+    try {
+        return Instant.parse(text)
+    } catch (DateTimeParseException ignored) {
+        // Continue to fallback parser
+    }
+    try {
+        ZonedDateTime zonedDateTime = ZonedDateTime.parse(text)
+        return zonedDateTime.toInstant()
+    } catch (DateTimeParseException ignored) {
+        // No additional parsing strategies available
+    }
+    return null
+}
+
+private Instant parseEpochMillis(String text) {
+    try {
+        long epochMillis = Long.parseLong(text)
+        return Instant.ofEpochMilli(epochMillis)
+    } catch (NumberFormatException ignored) {
+        // Not a numeric epoch representation
     }
     return null
 }
