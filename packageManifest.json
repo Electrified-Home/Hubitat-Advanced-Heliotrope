@@ -10,7 +10,7 @@
   "apps": [
     {
       "id": "sky-regions-parent",
-      "name": "Advanced Heliotrope - Sky Regions",
+      "name": "Advanced Heliotrope",
       "namespace": "electrified-home",
       "location": "https://raw.githubusercontent.com/Electrified-Home/Hubitat-Advanced-Heliotrope/main/apps/SkyRegionsApp.groovy",
       "required": true,

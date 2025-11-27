@@ -1,5 +1,5 @@
 /*
- * Advanced Heliotrope - Sky Regions Parent App
+ * Advanced Heliotrope Application
  * Copyright (c) 2024-2025 Electrified Home
  *
  * This program is free software: you can redistribute it and/or modify it under
@@ -14,9 +14,6 @@
  * program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-/**
- * Advanced Heliotrope - Sky Regions Parent App
- */
 
 import groovy.transform.Field
 
