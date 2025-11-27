@@ -19,7 +19,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-import java.time.temporal.TemporalAccessor
+import java.time.format.DateTimeParseException
 
 /**
  * Advanced Heliotrope Driver
@@ -386,11 +386,23 @@ private Instant toInstant(Object value) {
     }
     def timeProperty = value.metaClass?.hasProperty(value, 'time') ? value.time : null
     if (timeProperty != null) {
-        return Instant.ofEpochMilli(((Number) timeProperty).longValue())
+        try {
+            long epochMillis = Long.parseLong(timeProperty.toString())
+            return Instant.ofEpochMilli(epochMillis)
+        } catch (NumberFormatException ignored) {
+            // Continue to other conversion strategies
+        }
     }
     if (value.metaClass?.respondsTo(value, 'toInstant')) {
         def instantValue = value.toInstant()
-        return Instant.from((TemporalAccessor) instantValue)
+        if (instantValue?.metaClass?.respondsTo(instantValue, 'toEpochMilli')) {
+            return Instant.ofEpochMilli((long) instantValue.toEpochMilli())
+        }
+        try {
+            return Instant.parse(instantValue?.toString())
+        } catch (DateTimeParseException ignored) {
+            // Fall through to return null
+        }
     }
     return null
 }
