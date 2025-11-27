@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Documentation now matches the simplified runtime model where the Sky Regions app only installs/configures devices.
+- Sun Position driver description updated to cover `autoUpdate`, interval dropdown, and direct child notifications.
+- Region documentation now highlights the motion-only capability and lack of auxiliary timestamps.
+- Installation guide reminds users to review Sun Position preferences after running the wizard.
+- Circular and rectangular region drivers now behave exactly like motion sensors—no extra attributes such as `inRegion`, `enteredRegion`, or geometry summaries remain.
+- Region drivers now initialize the `motion` attribute to a blank value and rely on Hubitat’s duplicate suppression, and the README/docs were refreshed to spell that out.
+
 ## 1.0.0 - 2025-11-26
 
 - Initial public release of Advanced Heliotrope for Hubitat

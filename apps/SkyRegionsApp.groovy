@@ -13,19 +13,13 @@
 @Field static final String BUTTON_CREATE_REGION = 'Create Region'
 @Field static final String SECTION_ACTIONS = 'Actions'
 @Field static final String UNKNOWN_VALUE = 'Unknown'
-@Field static final String VALUE_NOT_AVAILABLE = 'n/a'
-@Field static final String TEXT_FALSE = 'false'
 @Field static final String INPUT_TYPE_TEXT = 'text'
 @Field static final String INPUT_TYPE_ENUM = 'enum'
 @Field static final String MESSAGE_UNABLE_ADD_REGION = 'Unable to add region device'
 @Field static final String MESSAGE_REGION_REMOVAL_FAILED = 'Region removal failed'
 @Field static final String SUN_DNI_PREFIX = 'AH-Sun-'
 @Field static final String REGION_DNI_PREFIX = 'AH-REGION'
-@Field static final String ATTR_REGION_STATUS = 'regionStatus'
-@Field static final String ATTR_REGION_SUMMARY = 'regionSummary'
-@Field static final String ATTR_LAST_AZIMUTH = 'lastAzimuth'
-@Field static final String ATTR_LAST_ALTITUDE = 'lastAltitude'
-@Field static final String ATTR_IN_REGION = 'inRegion'
+@Field static final String ATTR_MOTION = 'motion'
 @Field static final String DATA_REGION_TYPE = 'regionType'
 @Field static final String SETTING_PENDING_LABEL = 'pendingRegionLabel'
 @Field static final String SETTING_PENDING_TYPE = 'pendingRegionType'
@@ -84,10 +78,10 @@ def mainPage() {
             def regions = regionDevices()
             if (regions) {
                 regions.sort { region -> region.displayName?.toLowerCase() }.each { child ->
-                    def status = child.currentValue(ATTR_REGION_STATUS) ?: UNKNOWN_VALUE
                     def typeKey = child.getDataValue(DATA_REGION_TYPE)
-                    def regionSummary = child.currentValue(ATTR_REGION_SUMMARY) ?: REGION_TYPES[typeKey]?.description
-                    String detail = "${status} • ${regionSummary ?: 'Tap to view'}"
+                    def motionState = child.currentValue(ATTR_MOTION) ?: UNKNOWN_VALUE
+                    String typeSummary = REGION_TYPES[typeKey]?.description ?: 'Tap to view'
+                    String detail = "Motion: ${motionState} • ${typeSummary}"
                     href PAGE_REGION_DETAIL, title: child.displayName,
                         description: detail, params: [deviceId: child.id]
                 }
@@ -157,14 +151,8 @@ def regionDetailPage(Map params) {
         def typeMeta = REGION_TYPES[typeKey]
         section('Overview') {
             paragraph "Type: ${typeMeta?.description ?: child.typeName}"
-            paragraph "Status: ${child.currentValue(ATTR_REGION_STATUS) ?: UNKNOWN_VALUE}"
+            paragraph "Motion: ${child.currentValue(ATTR_MOTION) ?: UNKNOWN_VALUE}"
             paragraph "Device Id: ${child.id}"
-        }
-
-        section('Recent Readings') {
-            paragraph "Last azimuth: ${child.currentValue(ATTR_LAST_AZIMUTH) ?: VALUE_NOT_AVAILABLE}°"
-            paragraph "Last altitude: ${child.currentValue(ATTR_LAST_ALTITUDE) ?: VALUE_NOT_AVAILABLE}°"
-            paragraph "In region: ${child.currentValue(ATTR_IN_REGION) ?: TEXT_FALSE}"
         }
 
         section(SECTION_ACTIONS) {

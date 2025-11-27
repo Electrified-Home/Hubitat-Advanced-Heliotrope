@@ -13,4 +13,4 @@
 1. In the Hubitat UI, go to **Drivers Code** → **New Driver**, paste each driver file from the `drivers/` folder, and click **Save**.
 2. Go to **Apps Code** → **New App**, paste `apps/SkyRegionsApp.groovy`, and click **Save**.
 3. From **Apps**, click **Add User App** and select **Advanced Heliotrope - Sky Regions**.
-4. Complete the setup wizard to create the Sun Position device and your first regions.
+4. Complete the setup wizard to create the Sun Position device and your first regions. Afterward, open the Sun Position device to confirm the `autoUpdate` toggle and preferred interval before relying on automations.

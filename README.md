@@ -5,7 +5,10 @@ A Hubitat app and driver suite that provides advanced sun-position tracking with
 ## Features
 
 - Track the sun's position (azimuth and elevation) throughout the day
+- Sun Position driver manages its own cadence via an `autoUpdate` toggle and dropdown covering 1 minute through 3 hours, exposing both `lastUpdate` and `lastCalculated` timestamps
 - Define custom sky regions for automations
+- Motion-capable region devices (`SkyRegionCircular`, `SkyRegionRectangular`) behave exactly like a motion sensor—state stays blank until the next sun reading, then flips to `active` (inside) or `inactive` (outside)
+- Built-in planning helper inside the Sky Regions app suggests center azimuth/altitude and radius/min-max values based on simple “window faces” questions
 - Trigger actions based on when the sun enters or exits specific sky regions
 
 ## Project Structure
@@ -37,6 +40,7 @@ Hubitat-Advanced-Heliotrope/
 - [Usage Guide](docs/USAGE.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Changelog](docs/CHANGELOG.md)
+- [Documentation Overview](docs/README.md)
 
 ## Installation
 
