@@ -2,6 +2,8 @@
 
 A Hubitat app and driver suite that provides advanced sun-position tracking with configurable sky regions, enabling precise automations based on solar geometry.
 
+![Solar trajectory visualization for Advanced Heliotrope](SolarTrajectory.png)
+
 ## Features
 
 - Track the sun's position (azimuth and elevation) throughout the day
