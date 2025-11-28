@@ -1,12 +1,12 @@
 {
   "packageName": "Advanced Heliotrope",
   "author": "Electrified-Home",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "minimumHEVersion": "2.3.0",
-  "dateReleased": "2025-11-26",
+  "dateReleased": "2025-11-28",
   "license": "GPLv3",
   "documentationLink": "https://github.com/Electrified-Home/Hubitat-Advanced-Heliotrope/blob/main/docs/README.md",
-  "releaseNotes": "Initial release with parent app, sun driver, and circular/rectangular regions.",
+  "releaseNotes": "Adds manual solar stats command plus documentation updates for the new calibration workflow.",
   "apps": [
     {
       "id": "sky-regions-parent",
