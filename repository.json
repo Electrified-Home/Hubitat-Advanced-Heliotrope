@@ -1,0 +1,13 @@
+{
+  "author": "Electrified-Home",
+  "gitHubUrl": "https://github.com/Electrified-Home/Hubitat-Advanced-Heliotrope",
+  "packages": [
+    {
+      "id": "advanced-heliotrope",
+      "name": "Advanced Heliotrope",
+      "location": "https://raw.githubusercontent.com/Electrified-Home/Hubitat-Advanced-Heliotrope/main/packageManifest.json",
+      "description": "Sun position tracking app/driver suite with configurable sky regions.",
+      "category": "Automation"
+    }
+  ]
+}
