@@ -6,6 +6,7 @@ A Hubitat app and driver suite that provides advanced sun-position tracking with
 
 - Track the sun's position (azimuth and elevation) throughout the day
 - Sun Position driver manages its own cadence via an `autoUpdate` toggle and dropdown covering 1 minute through 3 hours, publishing a `lastCalculated` timestamp with every reading
+- Manual `Calculate Solar Stats` command captures the next sunrise/sunset azimuths (state variables) using Hubitat's sun data plus fallback logic, making it easy to calibrate window regions
 - Define custom sky regions for automations
 - Motion-capable region devices (`SkyRegionCircular`, `SkyRegionRectangular`) behave exactly like a motion sensor—state stays blank until the next sun reading, then flips to `active` (inside) or `inactive` (outside)
 - Region creation wizard keeps configuration lightweight—set the label/type in the app, then fine tune geometry directly on each region device page
